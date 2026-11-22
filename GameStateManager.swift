@@ -66,9 +66,9 @@ enum SnookerLayout {
 }
 
 enum GameMode: String, CaseIterable {
-    case eight = "8ball", nine = "9ball", ten = "10ball", straight = "straight", snooker = "snooker"
+    case eight = "8ball", nine = "9ball", ten = "10ball", straight = "straight", snooker = "snooker", practice = "practice"
     var title: String {
-        switch self { case .eight: return "8-Ball"; case .nine: return "9-Ball"; case .ten: return "10-Ball"; case .straight: return "14/1"; case .snooker: return "Snooker" }
+        switch self { case .eight: return "8-Ball"; case .nine: return "9-Ball"; case .ten: return "10-Ball"; case .straight: return "14/1"; case .snooker: return "Snooker"; case .practice: return "Trening" }
     }
     var subtitle: String {
         switch self {
@@ -77,9 +77,10 @@ enum GameMode: String, CaseIterable {
         case .ten: return "Bile 1–10, deklaracja bili i łuzy (Call Shot), wygrywa dziesiątka"
         case .straight: return "Gra do N punktów, deklarowane wbicia, trójkąt po 14 bilach"
         case .snooker: return "Stół 12 ft, 15 czerwonych i 6 kolorowych, punktacja do czarnej"
+        case .practice: return "Swobodna gra bez przeciwnika i kar: 15 bil rozrzuconych po stole, wbijaj w dowolnej kolejności"
         }
     }
-    var ballCount: Int { switch self { case .eight, .straight: return 15; case .nine: return 9; case .ten: return 10; case .snooker: return 21 } }
+    var ballCount: Int { switch self { case .eight, .straight, .practice: return 15; case .nine: return 9; case .ten: return 10; case .snooker: return 21 } }
     var isPoints: Bool { self == .straight || self == .snooker }
     func makeRules() -> GameModeRules {
         switch self {
@@ -88,6 +89,7 @@ enum GameMode: String, CaseIterable {
         case .ten: return TenBallRules()
         case .straight: return StraightPoolRules()
         case .snooker: return SnookerRules()
+        case .practice: return PracticeRules()
         }
     }
 }
@@ -152,6 +154,48 @@ class BaseRules {
 }
 
 // MARK: 8-Ball
+
+/// Trening: 15 bil rozrzuconych po stole, dowolna kolejność, bez kar i bez przeciwnika
+final class PracticeRules: BaseRules, GameModeRules {
+    var mode: GameMode { .practice }
+    var groups: [Group?] = [nil, nil]
+    var needsCall: Bool { false }
+    var ballSet: [Int] { Array(1...15) }
+    var tableCount: Int { 15 - pocketed.filter { $0 != 0 }.count }
+    override func resetExtra() { groups = [nil, nil]; breakShot = false }
+    override func isAI(_ p: Int) -> Bool { false }
+    override func name(_ p: Int) -> String { p == 0 ? Settings.shared.playerName(0, vsAI: false) : "Trening" }
+
+    func layout(rng: inout SeededGen) -> [Int: V2] {
+        var out: [Int: V2] = [0: cueSpot]
+        let R = Phys.R
+        for id in Array(1...15).shuffled(using: &rng) {
+            for _ in 0..<400 {
+                let x = -Phys.halfL + 0.25 + Double(rng.next() % 10000) / 10000 * (2 * Phys.halfL - 0.5)
+                let y = -Phys.halfW + 0.15 + Double(rng.next() % 10000) / 10000 * (2 * Phys.halfW - 0.3)
+                let p = V2(x, y)
+                if out.values.allSatisfy({ simd_length($0 - p) > 2 * R + 0.05 }) { out[id] = p; break }
+            }
+        }
+        return out
+    }
+    func legalTargets(_ p: Int) -> [Int] { (1...15).filter { !pocketed.contains($0) } }
+    func targetHint(_ p: Int) -> String { "Wbite: \(scores[0]) / 15" }
+
+    func resolve(_ r: ShotReport) -> ShotOutcome {
+        var o = ShotOutcome()
+        let objs = r.pocketed.filter { $0 != 0 }
+        pocketed += objs
+        scores[0] += objs.count
+        currentBreak = objs.isEmpty ? 0 : currentBreak + objs.count
+        highBreak = max(highBreak, currentBreak)
+        o.continueTurn = true
+        if r.pocketed.contains(0) { o.ballInHand = true; currentBreak = 0; o.message = "Biała wpadła do łuzy – ustaw ją ponownie" }
+        else { o.message = objs.isEmpty ? "Pudło" : "Wbito \(objs.count)" }
+        if scores[0] >= 15 { o.winner = 0; o.message = "Stół wyczyszczony!" }
+        return o
+    }
+}
 
 final class EightBallRules: BaseRules, GameModeRules {
     var mode: GameMode { .eight }
@@ -786,14 +830,15 @@ enum AIPlayer {
             // próbkuj pozycje białej
             var bestScore = -1e9
             var cands: [V2] = []
-            let xMax = rules.breakShot ? -Phys.halfL / 2 : Phys.halfL - 0.1
+            let restr = rules.breakShot || (Settings.shared.foulKitchen && [.eight, .nine, .ten].contains(rules.mode))
+            let xMax = restr ? -Phys.halfL / 2 : Phys.halfL - 0.1
             let fine = rules.mode == .snooker ? 0.5 : 1.0
             var gx = -Phys.halfL + 0.1
             while gx <= xMax {
                 var gz = -Phys.halfW + 0.08
                 while gz <= Phys.halfW - 0.08 {
                     let c = V2(gx, gz)
-                    if simd_length(rules.clampCue(c, restricted: rules.breakShot) - c) < 1e-9 { cands.append(c) }
+                    if simd_length(rules.clampCue(c, restricted: restr) - c) < 1e-9 { cands.append(c) }
                     gz += 0.12 * fine
                 }
                 gx += 0.14 * fine
@@ -806,8 +851,18 @@ enum AIPlayer {
             }
             if shot == nil {
                 // brak czystego strzału: ustaw białą blisko środka i graj w najbliższy cel
-                let c = rules.clampCue(V2(rules.breakShot ? -Phys.halfL * 0.6 : -0.3, 0), restricted: rules.breakShot)
-                cue = balls.contains(where: { $0.active && $0.id != 0 && simd_length($0.p - c) < 2 * R + 0.01 }) ? V2(c.x, c.y + 0.2) : c
+                let c = rules.clampCue(V2(restr ? -Phys.halfL * 0.6 : -0.3, 0), restricted: restr)
+                // szukaj wolnego miejsca spiralnie wokół punktu (w obrębie strefy ustawiania)
+                func blocked(_ q: V2) -> Bool { balls.contains(where: { $0.active && $0.id != 0 && simd_length($0.p - q) < 2 * R + 0.01 }) }
+                cue = c
+                if blocked(c) {
+                    search: for k in 1..<60 {
+                        for (dx, dy) in [(0.0, 1.0), (0.0, -1.0), (1.0, 0.0), (-1.0, 0.0), (1.0, 1.0), (-1.0, -1.0), (1.0, -1.0), (-1.0, 1.0)] {
+                            let q = rules.clampCue(V2(c.x + dx * 0.05 * Double(k), c.y + dy * 0.05 * Double(k)), restricted: restr)
+                            if abs(q.y) < Phys.halfW - R - 0.01 && !blocked(q) { cue = q; break search }
+                        }
+                    }
+                }
                 shot = AIShot(yaw: 0, power: 0.5, off: V2(0, 0), cuePos: cue)
             }
         } else {

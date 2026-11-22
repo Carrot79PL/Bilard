@@ -122,6 +122,12 @@ enum TableBuilder {
         }
         if !normalMap { m.multiply.contents = cushionColor(blue: blue) }
         if let s = shaders["cloth_surface"] { m.shaderModifiers = [.surface: s] }
+        if let v = ProcessInfo.processInfo.environment["BILARD_CLOTHVAR"] {   // test: izolacja źródła drgań
+            if v.contains("n") { m.normal.contents = nil }
+            if v.contains("d") { m.diffuse.contents = NSColor(white: 150.0 / 255.0, alpha: 1) }
+            if v.contains("r") { m.roughness.contents = 0.925 }
+            if v.contains("s") { m.shaderModifiers = nil }
+        }
         return m
     }
     static func clothColor(blue: Bool = true) -> NSColor { nsc(Settings.shared.cloth.color) }

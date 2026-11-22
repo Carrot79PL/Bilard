@@ -5,7 +5,7 @@
 Natywna gra bilardowa 3D na macOS: **ósemka, dziewiątka, dziesiątka, 14/1 i snooker**, z własną fizyką bil, przeciwnikiem komputerowym na trzech poziomach, trybem turniejowym i fotorealistyczną grafiką. Napisana w Swift, SceneKit (Metal) i SwiftUI, bez silnika gier.
 🇬🇧 *A native 3D pool game for macOS: 8-ball, 9-ball, 10-ball, straight pool (14.1) and snooker, with custom ball physics, three AI levels, a tournament mode and photoreal graphics. Pure Swift, SceneKit (Metal) and SwiftUI — no game engine.*
 
-**Wersja:** 1.2  ·  **Autor:** Tomasz Marchewka
+**Wersja:** 1.3  ·  **Autor:** Tomasz Marchewka
 
 ![Bilard — celowanie w ósemkę](docs/screenshot.jpg)
 
@@ -20,6 +20,15 @@ Natywna gra bilardowa 3D na macOS: **ósemka, dziewiątka, dziesiątka, 14/1 i s
 | ![Wygląd](docs/look.jpg) | ![Wyzwania](docs/challenges.jpg) |
 
 ![Menu klasyczne](docs/menu.jpg)
+
+## Nowości w wersji 1.3
+
+- **Tryb Trening:** 15 bil rozrzuconych po stole, bez przeciwnika i bez kar; po wbiciu białej tylko ustawiasz ją ponownie. Nie wpływa na rekordy ani trofea.
+- **Zasada domowa „Biała po faulu”:** w ósemce, dziewiątce i dziesiątce do wyboru „W ręce” (domyślnie) albo „Za linią” głowy; stosuje się też do komputera.
+- **Podświetlona strefa ustawiania białej** przed rozbiciem (pole rozbicia lub półkole „D” w snookerze).
+- **Poprawa AI:** komputer nie ustawia już białej na innej bili.
+- **Mniejsze drganie sukna** z daleka oraz zdjęcie autora w zakładce „O autorze”.
+- **Test bezokienkowy** `BILARD_SELFTEST=<partii>` (tryb: `BILARD_STMODE`, poziom: `BILARD_STLEVEL`): partie AI przeciwko AI szukające błędów fizyki i zasad (kilkanaście tysięcy partii bez anomalii).
 
 ## Nowości w wersji 1.2
 
@@ -106,6 +115,7 @@ Aby użyć Xcode: utwórz projekt macOS App, dodaj wszystkie pliki `.swift` (pli
 | `HUDView.swift`, `MenuViews.swift`, `Settings.swift`, `Personalize.swift`, `Tournament*.swift`, `SaveGame.swift` | interfejs, ustawienia, personalizacja, turniej, zapis |
 | `AudioEngine.swift`, `MusicEngine.swift` | dźwięk 3D, muzyka i brawa |
 | `ClothMenu.swift`, `Emblems.swift`, `Confetti.swift`, `Challenges.swift`, `HDRSupport.swift`, `HDRIBackground.swift` | menu na suknie, emblematy, konfetti, wyzwania i trofea, HDR |
+| `SelfTest.swift` | test bezokienkowy AI vs AI |
 | `Resources/Shaders.metal` | shadery (modyfikatory SceneKit) |
 
 ## Podziękowania i licencje zasobów

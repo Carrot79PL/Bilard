@@ -124,6 +124,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 }
 
+if let n = ProcessInfo.processInfo.environment["BILARD_SELFTEST"], let games = Int(n) { SelfTest.run(games: games); exit(0) }   // test bezokienkowy
 let app = NSApplication.shared
 app.setActivationPolicy(.regular)
 let delegate = AppDelegate()

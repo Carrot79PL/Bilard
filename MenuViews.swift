@@ -139,6 +139,12 @@ struct MenuRoot: View {
             Rectangle().fill(UI.line).frame(height: 1)
             Row(label: "Gracz 1") { nameField($s.name1, "Gracz 1") }
             Row(label: "Gracz 2") { nameField($s.name2, "Gracz 2") }
+            if [.eight, .nine, .ten].contains(m.mode) {
+                Row(label: "Biała po faulu") {
+                    Chip(title: "W ręce", selected: !s.foulKitchen) { s.foulKitchen = false }
+                    Chip(title: "Za linią", selected: s.foulKitchen) { s.foulKitchen = true }
+                }
+            }
             Row(label: "Poziom komputera") {
                 ForEach(AILevel.allCases, id: \.rawValue) { l in
                     Chip(title: l.title, selected: s.aiLevel == l.rawValue) { s.aiLevel = l.rawValue }
@@ -279,7 +285,7 @@ struct MenuRoot: View {
     var recordsTab: some View {
         VStack(spacing: 10) {
             HStack(spacing: 6) {
-                ForEach(GameMode.allCases, id: \.self) { gm in Chip(title: gm.title, selected: recMode == gm) { recMode = gm } }
+                ForEach(GameMode.allCases.filter { $0 != .practice }, id: \.self) { gm in Chip(title: gm.title, selected: recMode == gm) { recMode = gm } }
             }
             let rows = rec.rows(recMode)
             VStack(spacing: 0) {
@@ -414,8 +420,16 @@ struct MenuRoot: View {
         let v = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
         return ScrollView {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Bilard · wersja \(v)").font(.system(size: 17, weight: .bold)).foregroundColor(UI.text)
-                Text("Autor: Tomasz Marchewka · studio BLUEROOT").font(.system(size: 13)).foregroundColor(UI.menuAccent)
+                HStack(spacing: 14) {
+                    if let u = Bundle.main.url(forResource: "author", withExtension: "jpg"), let img = NSImage(contentsOf: u) {
+                        Image(nsImage: img).resizable().scaledToFill().frame(width: 72, height: 72).clipShape(Circle())
+                            .overlay(Circle().stroke(UI.menuAccent.opacity(0.7), lineWidth: 1.5))
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Bilard · wersja \(v)").font(.system(size: 17, weight: .bold)).foregroundColor(UI.text)
+                        Text("Autor: Tomasz Marchewka · studio BLUEROOT").font(.system(size: 13)).foregroundColor(UI.menuAccent)
+                    }
+                }
                 Text("Natywna gra na macOS napisana w Swift z SceneKit/Metal: własna fizyka bil, tryby 8/9/10-Ball, 14/1 i snooker, komputerowy przeciwnik i muzyka syntezowana na żywo. Dziękuję za granie!")
                     .font(.system(size: 12)).foregroundColor(UI.dim).fixedSize(horizontal: false, vertical: true)
                 Rectangle().fill(UI.line).frame(height: 1)

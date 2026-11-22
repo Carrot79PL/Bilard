@@ -103,8 +103,8 @@ final class ClothMenuUI {
         // tryby gry
         let modes = GameMode.allCases
         for (i, gm) in modes.enumerated() {
-            let x = cx + CGFloat(i - 2) * 250
-            text(gm.title.uppercased(), x: x, y: 392, size: 38, weight: .bold, track: 5, alpha: gm == mode ? 1 : 0.7, id: "mode:\(gm.rawValue)", underline: gm == mode)
+            let x = cx + (CGFloat(i) - CGFloat(modes.count - 1) / 2) * 232
+            text(gm.title.uppercased(), x: x, y: 392, size: 34, weight: .bold, track: 5, alpha: gm == mode ? 1 : 0.7, id: "mode:\(gm.rawValue)", underline: gm == mode)
         }
 
         // przyciski główne

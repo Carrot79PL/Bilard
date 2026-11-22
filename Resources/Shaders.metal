@@ -7,7 +7,13 @@
 float topMix;
 #pragma body
 // Włosy sukna: jaśniejsza, „aksamitna” krawędź pod małym kątem patrzenia + delikatne sploty
-float3 N = normalize(_surface.normal);
+// z odległością wygaszamy mikro-detal (mapa normalnych i kontrast tekstury) – to on drga przy podpikselowym ruchu kamery
+float dist = length(_surface.position);
+float far = smoothstep(0.7, 2.2, dist);
+float3 Ng = normalize(_surface.geometryNormal);
+_surface.normal = normalize(mix(_surface.normal, Ng, far));
+_surface.diffuse.rgb = mix(_surface.diffuse.rgb, float3(0.588), 0.75 * far);
+float3 N = Ng;
 float3 V = normalize(_surface.view);
 float rim = pow(saturate(1.0 - dot(N, V)), 2.2);
 _surface.diffuse.rgb *= 1.0 + 0.22 * rim;

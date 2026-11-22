@@ -119,6 +119,8 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
     var lastTime = CACurrentMediaTime()
     var ballInHand = false
     var placingBreak = false
+    var placeZone: SCNNode?
+    var placeZoneKey = ""
     var hoverPoint: V2? = nil
     var drops: [Int: (t: Double, from: V2, to: V2)] = [:]
     var smoothFocus = V3(0, 0, 0)
@@ -598,6 +600,8 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
             sub = rules.needsCall ? "najniższa · deklaruj bilę i łuzę" : "najniższa na stole"
         case .straight:
             ids = []; title = "Dowolna bila"; sub = "deklaruj bilę i łuzę"
+        case .practice:
+            ids = []; title = "Dowolna bila"; sub = "trening bez kar"
         case .snooker:
             if ids.count == 1, ids[0] > 15 { title = SnookerLayout.names[ids[0]]?.capitalized ?? "Kolor"; sub = "kolory w kolejności" }
             else if ids.allSatisfy({ $0 <= 15 }) { ids = Array(ids.prefix(1)); title = "Czerwona"; sub = "potem dowolny kolor" }
@@ -987,6 +991,7 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
                 if let (r, i) = ts.advanceAI() { startTournamentMatch(r, i) } else { print("TURNIEJ bez meczu człowieka"); exit(0) }
             } else {
                 newGame(vsAI: true)
+                if env["BILARD_PLACETEST"] != nil { DispatchQueue.main.async { [self] in phase = .aiming; beginReposition() } }   // test: strefa ustawiania białej
             }
         }
     }
@@ -1052,7 +1057,7 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
         var q = p
         q.x = max(-Phys.halfL + R + 0.005, min(Phys.halfL - R - 0.005, q.x))
         q.y = max(-Phys.halfW + R + 0.005, min(Phys.halfW - R - 0.005, q.y))
-        q = rules.clampCue(q, restricted: placingBreak || rules.breakShot && ballInHand)
+        q = rules.clampCue(q, restricted: placingBreak || rules.breakShot && ballInHand || ballInHand && Settings.shared.foulKitchen && [.eight, .nine, .ten].contains(rules.mode))
         return q
     }
     func cueSpotFree(_ q: V2) -> Bool { physics.isFree(q, ignoring: 0, margin: 0.003) }
@@ -1324,7 +1329,7 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
             }
         }
         if rules.highBreak > prevHigh { breakBest[shooter] = max(breakBest[shooter], rules.highBreak) }
-        if !demo { Challenges.shared.shot(pots: report.pocketed.filter { $0 != 0 }.count, foul: out.foul, human: !rules.isAI(shooter)) }
+        if !demo && rules.mode != .practice { Challenges.shared.shot(pots: report.pocketed.filter { $0 != 0 }.count, foul: out.foul, human: !rules.isAI(shooter)) }
         model.message = out.message
         syncModel()
         if autoplay {
@@ -1354,8 +1359,8 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
         if let w = out.winner {
             model.winner = w
             if demo { phase = .gameOver; table.cue.isHidden = true; demoOverT = 0; return }
-            saveRecords(winner: w)
-            Challenges.shared.gameEnd(humanWon: !rules.isAI(w), vsAI: model.vsAI, level: Settings.shared.aiLevel, mode: gameMode, tournament: tourPos != nil)
+            if rules.mode != .practice { saveRecords(winner: w) }
+            if rules.mode != .practice { Challenges.shared.gameEnd(humanWon: !rules.isAI(w), vsAI: model.vsAI, level: Settings.shared.aiLevel, mode: gameMode, tournament: tourPos != nil) }
             finishTournamentMatch(winner: w)
             phase = .gameOver
             audio.applause()
@@ -1669,9 +1674,52 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
         return info
     }
 
+    /// Podświetla strefę, w której wolno ustawić białą (pole rozbicia / półkole „D”), żeby granica była widoczna
+    func updatePlaceZone(visible: Bool) {
+        guard visible else { placeZone?.isHidden = true; return }
+        let key = "\(rules.mode.rawValue)\(Phys.halfL)"
+        if placeZone == nil || placeZoneKey != key {
+            placeZone?.removeFromParentNode()
+            let n = 512
+            var w = 0.0, h = 0.0, cx = 0.0
+            let snook = rules.mode == .snooker
+            if snook { w = 0.292 * 2; h = w; cx = SnookerLayout.baulkX }
+            else { w = Phys.halfL / 2; h = 2 * Phys.halfW; cx = -Phys.halfL + w / 2 }
+            let cols = CGColorSpaceCreateDeviceRGB()
+            guard let ctx = CGContext(data: nil, width: n, height: n, bitsPerComponent: 8, bytesPerRow: 0, space: cols, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return }
+            ctx.setFillColor(CGColor(gray: 0, alpha: 1)); ctx.fill(CGRect(x: 0, y: 0, width: n, height: n))
+            let white = CGColor(gray: 1, alpha: 1)
+            if snook {
+                // półkole: x ≤ baulk (lewa połowa obrazu), plansza ma +X w prawo
+                ctx.saveGState(); ctx.clip(to: CGRect(x: 0, y: 0, width: n / 2, height: n))
+                ctx.setFillColor(CGColor(gray: 0.30, alpha: 1)); ctx.fillEllipse(in: CGRect(x: 0, y: 0, width: n, height: n))
+                ctx.setStrokeColor(white); ctx.setLineWidth(6); ctx.strokeEllipse(in: CGRect(x: 3, y: 3, width: n - 6, height: n - 6))
+                ctx.restoreGState()
+                ctx.setFillColor(white); ctx.fill(CGRect(x: n / 2 - 3, y: 0, width: 6, height: n))
+            } else {
+                ctx.setFillColor(CGColor(gray: 0.34, alpha: 1)); ctx.fill(CGRect(x: 0, y: 0, width: n, height: n))
+                ctx.setFillColor(white); ctx.fill(CGRect(x: n - 6, y: 0, width: 6, height: n))
+            }
+            guard let img = ctx.makeImage() else { return }
+            let plane = SCNPlane(width: CGFloat(w), height: CGFloat(h))
+            let m = SCNMaterial(); m.lightingModel = .constant
+            m.diffuse.contents = img; m.blendMode = .add; m.writesToDepthBuffer = false; m.readsFromDepthBuffer = true; m.isDoubleSided = true
+            plane.materials = [m]
+            let node = SCNNode(geometry: plane)
+            node.eulerAngles.x = -.pi / 2
+            node.castsShadow = false; node.renderingOrder = 60
+            node.simdPosition = SIMD3<Float>(Float(cx), 0.0034, 0)
+            rig.addChildNode(node)
+            placeZone = node; placeZoneKey = key
+        }
+        placeZone?.isHidden = false
+        placeZone?.opacity = CGFloat(0.55 + 0.25 * sin(CACurrentMediaTime() * 3))
+    }
+
     func updateAimLines() {
         let humanAim = phase == .aiming && aiStage < 0 && !rules.isAI(rules.current) && !autoplay && !demo && !fx.busy
         let placing = phase == .placing
+        updatePlaceZone(visible: placing && (placingBreak || rules.breakShot && ballInHand))
         if !humanAim && !placing { setLinesVisible(false); aimInd.hide(); return }
         if placing { setLinesVisible(false); aimInd.hide(); return }
         let p = physics.balls[0].p
