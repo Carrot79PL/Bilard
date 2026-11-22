@@ -5,7 +5,7 @@
 Natywna gra bilardowa 3D na macOS: **ósemka, dziewiątka, dziesiątka, 14/1 i snooker**, z własną fizyką bil, przeciwnikiem komputerowym na trzech poziomach, trybem turniejowym i fotorealistyczną grafiką. Napisana w Swift, SceneKit (Metal) i SwiftUI, bez silnika gier.
 🇬🇧 *A native 3D pool game for macOS: 8-ball, 9-ball, 10-ball, straight pool (14.1) and snooker, with custom ball physics, three AI levels, a tournament mode and photoreal graphics. Pure Swift, SceneKit (Metal) and SwiftUI — no game engine.*
 
-**Wersja:** 1.3.1  ·  **Autor:** Tomasz Marchewka
+**Wersja:** 1.4  ·  **Autor:** Tomasz Marchewka
 
 ![Bilard — celowanie w ósemkę](docs/screenshot.jpg)
 
@@ -20,6 +20,11 @@ Natywna gra bilardowa 3D na macOS: **ósemka, dziewiątka, dziesiątka, 14/1 i s
 | ![Wygląd](docs/look.jpg) | ![Wyzwania](docs/challenges.jpg) |
 
 ![Menu klasyczne](docs/menu.jpg)
+
+## Nowości w wersji 1.4
+
+- **Intro z podpisem autora:** po stoczeniu się ósemki ze znakiem studia pióro pisze podpis „Tomasz Marchewka” litera po literze (z cienkimi końcami kresek i symetrycznym podkreśleniem), a na końcu pojawia się napis STUDIO. Intro można pominąć klawiszem lub kliknięciem.
+- Poprzednie logo na ekranie tytułowym (trzy bile i napis BILARD) bez zmian.
 
 ## Nowości w wersji 1.3.1
 

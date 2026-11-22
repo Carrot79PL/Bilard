@@ -582,65 +582,20 @@ struct MenuButton: View {
 // MARK: - Powtórki (oprawa telewizyjna)
 
 /// tryb demo: dyskretna plakietka i zachęta (statyczne – zero kosztu na klatkę)
-/// Logo gry: trójkąt z bil nad napisem, w którym „I” jest kijem bilardowym
-struct GameLogo: View {
-    var body: some View {
-        VStack(spacing: 10) {
-            VStack(spacing: -5) {
-                BallChip(n: 1, size: 58)
-                HStack(spacing: -4) { BallChip(n: 9, size: 58); BallChip(n: 2, size: 58) }
-                HStack(spacing: -4) { BallChip(n: 3, size: 58); BallChip(n: 8, size: 58); BallChip(n: 10, size: 58) }
-            }
-            .shadow(color: .black.opacity(0.5), radius: 10, y: 5)
-            HStack(alignment: .bottom, spacing: 0) {
-                Text("B")
-                CueGlyph().frame(width: 36, height: 128).padding(.horizontal, 8).offset(y: 6)
-                Text("LARD")
-            }
-            .font(.system(size: 120, weight: .heavy)).tracking(26).foregroundColor(UI.text)
-            .shadow(color: .black.opacity(0.6), radius: 18, y: 4)
-            HStack(spacing: 14) {
-                Rectangle().fill(UI.line).frame(width: 70, height: 1)
-                Text("8-BALL · 9-BALL · 10-BALL · 14/1 · SNOOKER").font(UI.label(13)).tracking(4).foregroundColor(UI.dim)
-                Rectangle().fill(UI.line).frame(width: 70, height: 1)
-            }
-        }
-        .padding(.horizontal, 40).padding(.vertical, 26)
-    }
-}
-
-/// Kij bilardowy ustawiony pionowo (czubek u góry): stożek z okuciem, pierścieniem i ciemną rękojeścią
-struct CueGlyph: View {
-    var body: some View {
-        Canvas { ctx, size in
-            let w = size.width, h = size.height
-            func half(_ t: CGFloat) -> CGFloat { (0.28 + 0.34 * t) * w / 2 }   // połowa szerokości: 28% → 62% szerokości
-            func seg(_ a: CGFloat, _ b: CGFloat, _ fill: GraphicsContext.Shading) {
-                var p = Path()
-                let ya = a * h, yb = b * h, c = w / 2
-                p.move(to: CGPoint(x: c - half(a), y: ya)); p.addLine(to: CGPoint(x: c + half(a), y: ya))
-                p.addLine(to: CGPoint(x: c + half(b), y: yb)); p.addLine(to: CGPoint(x: c - half(b), y: yb)); p.closeSubpath()
-                ctx.fill(p, with: fill)
-            }
-            seg(0.00, 0.035, .color(Color(red: 0.25, green: 0.55, blue: 0.95)))     // skórka
-            seg(0.035, 0.085, .color(Color(white: 0.96)))                            // okucie
-            seg(0.085, 0.60, .linearGradient(Gradient(colors: [Color(red: 0.93, green: 0.82, blue: 0.62), Color(red: 0.80, green: 0.64, blue: 0.40)]),
-                                              startPoint: CGPoint(x: 0, y: 0), endPoint: CGPoint(x: w, y: 0)))   // wałek (klon)
-            seg(0.60, 0.635, .color(Color(red: 0.86, green: 0.70, blue: 0.30)))      // złoty pierścień
-            seg(0.635, 1.0, .linearGradient(Gradient(colors: [Color(red: 0.20, green: 0.12, blue: 0.09), Color(red: 0.08, green: 0.05, blue: 0.04)]),
-                                             startPoint: CGPoint(x: 0, y: 0), endPoint: CGPoint(x: w, y: 0)))   // rękojeść
-            seg(0.78, 0.805, .color(Color(red: 0.86, green: 0.70, blue: 0.30).opacity(0.9)))
-        }
-        .shadow(color: .black.opacity(0.5), radius: 6, y: 3)
-    }
-}
-
 struct DemoOverlay: View {
     var body: some View {
         ZStack {
             RadialGradient(colors: [Color.black.opacity(0.45), .clear], center: .center, startRadius: 60, endRadius: 560)
                 .ignoresSafeArea()
-            GameLogo()
+            VStack(spacing: 14) {
+                HStack(spacing: -22) {
+                    BallChip(n: 1, size: 96).offset(y: 10)
+                    BallChip(n: 8, size: 116).zIndex(1)
+                    BallChip(n: 9, size: 96).offset(y: 10)
+                }
+                Text("BILARD").font(.system(size: 120, weight: .heavy)).tracking(34).foregroundColor(UI.text)
+                    .shadow(color: .black.opacity(0.6), radius: 18, y: 4)
+            }
             .padding(.horizontal, 40).padding(.vertical, 26)
             VStack {
                 HStack {

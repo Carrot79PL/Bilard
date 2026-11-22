@@ -2,12 +2,72 @@ import Cocoa
 import SceneKit
 import SpriteKit
 
+
+// MARK: - Podpis autora: linia pióra z grubością w każdym punkcie (dane z podpis_art.json)
+
+final class SignaturePen {
+    struct Seg { let a: CGPoint, b: CGPoint, wa: CGFloat, wb: CGFloat, t: Double }
+    let w: CGFloat, h: CGFloat
+    var segs: [Seg] = []
+    var next = 0
+    var total = 0.0
+    var tip = CGPoint.zero
+
+    init?(url: URL?) {
+        guard let url, let data = try? Data(contentsOf: url),
+              let j = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let jw = j["w"] as? Double, let jh = j["h"] as? Double, let st = j["strokes"] as? [[String: Any]] else { return nil }
+        w = CGFloat(jw); h = CGFloat(jh)
+        struct S { var c: Int; var p: [[Double]] }
+        let strokes = st.compactMap { d -> S? in
+            guard let c = d["c"] as? Int, let p = d["p"] as? [[Double]] else { return nil }
+            return S(c: c, p: p)
+        }
+        func len(_ p: [[Double]]) -> Double { var l = 0.0; for i in 1..<max(1, p.count) { l += hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]) }; return l }
+        let letters = strokes.filter { $0.c != 999 }.reduce(0.0) { $0 + len($1.p) }
+        let nComp = Set(strokes.filter { $0.c != 999 }.map { $0.c }).count
+        let writeTime = 4.4, pause = 0.075
+        let speed = letters / max(0.5, writeTime - Double(nComp) * pause)
+        let swooshTime = 0.95
+        var t = 0.0, prev = -1
+        for s in strokes {
+            if prev != -1 && s.c != prev { t += (s.c == 999 ? 0.28 : pause) }
+            prev = s.c
+            let L = len(s.p)
+            let sp = s.c == 999 ? max(1, L / swooshTime) : speed
+            var acc = 0.0
+            for i in 1..<max(1, s.p.count) {
+                let a = s.p[i - 1], b = s.p[i]
+                let d = hypot(b[0] - a[0], b[1] - a[1]); acc += d
+                segs.append(Seg(a: CGPoint(x: a[0], y: a[1]), b: CGPoint(x: b[0], y: b[1]), wa: CGFloat(a[2]), wb: CGFloat(b[2]), t: t + acc / sp))
+            }
+            t += L / sp
+        }
+        total = t
+    }
+
+    /// Dorysowuje do `ctx` (układ: jednostki podpisu, oś y w dół) wszystkie odcinki do chwili `t`; zwraca true, gdy coś doszło
+    @discardableResult
+    func advance(to t: Double, ctx: CGContext) -> Bool {
+        var drew = false
+        ctx.setLineCap(.round); ctx.setLineJoin(.round)
+        ctx.setStrokeColor(CGColor(red: 0.965, green: 0.973, blue: 0.992, alpha: 1))
+        while next < segs.count && segs[next].t <= t {
+            let sg = segs[next]
+            ctx.setLineWidth(max(0.8, (sg.wa + sg.wb) / 2 * 1.15))
+            ctx.move(to: sg.a); ctx.addLine(to: sg.b); ctx.strokePath()
+            tip = sg.b; next += 1; drew = true
+        }
+        return drew
+    }
+}
+
 // MARK: - Intro studia w 3D: czarna ósemka toczy się po lśniącej podłodze, a w jej białym polu „8” zamienia się w znak BLUEROOT
 
 final class Intro3DView: SCNView {
     var onDone: (() -> Void)?
     var finished = false
-    static let duration = 7.8
+    var duration = 12.0
     var frontU: CGFloat = CGFloat(Double(ProcessInfo.processInfo.environment["BILARD_INTRO3D_U"] ?? "") ?? 0.5)            // pozycja poziomo w teksturze, która trafia na przód bili (skalibrowana)
 
     override var acceptsFirstResponder: Bool { true }
@@ -58,6 +118,9 @@ final class Intro3DView: SCNView {
     // MARK: Budowa sceny
     func build() {
         let env = ProcessInfo.processInfo.environment
+        let penData = SignaturePen(url: Bundle.main.url(forResource: "podpis_art", withExtension: "json"))
+        duration = penData.map { 4.3 + $0.total + 0.25 + 0.8 + 1.6 } ?? 12
+        let dur = duration
         backgroundColor = nsc(BluerootIntro.bg)
         antialiasingMode = .multisampling4X
         allowsCameraControl = false
@@ -176,33 +239,59 @@ final class Intro3DView: SCNView {
         }]), forKey: "flash")
         nn.runAction(.sequence([.wait(duration: 2.35), .customAction(duration: 0.5) { _, t in nm.transparency = 1 - CGFloat(t) / 0.5 }, .hide()]))
         // powolny najazd kamery
-        cn.runAction(.customAction(duration: Self.duration) { node, t in
-            let p = CGFloat(t) / CGFloat(Self.duration)
+        cn.runAction(.customAction(duration: dur) { node, t in
+            let p = CGFloat(t) / CGFloat(dur)
             node.position = SCNVector3(0, 0.15, dist - 0.55 * p)
         })
 
-        // napisy: warstwa SpriteKit nad sceną (wektorowy napis studia + podpis)
+        // podpis (animowana linia pióra) + napis STUDIO: warstwa SpriteKit nad sceną
         let ov2 = SKScene(size: bounds.size); ov2.scaleMode = .resizeFill; ov2.backgroundColor = .clear
         let w = bounds.width, h = bounds.height
         let sw = min(w, h * 16 / 9), sh = sw * 9 / 16
         let rect = CGRect(x: (w - sw) / 2, y: (h - sh) / 2, width: sw, height: sh)
         let px = window?.backingScaleFactor ?? 2
-        let wordImg = makeImage(Int(sw * px), Int(sh * px)) { ctx in
-            ctx.translateBy(x: 0, y: CGFloat(Int(sh * px))); ctx.scaleBy(x: 1, y: -1)
-            ctx.scaleBy(x: CGFloat(Int(sw * px)) / CGFloat(BluerootIntro.W), y: CGFloat(Int(sw * px)) / CGFloat(BluerootIntro.W))
-            if let (wd, st) = BluerootIntro.wordPaths {
-                ctx.setFillColor(rgb(0xFFFFFF)); ctx.addPath(wd); ctx.fillPath()
-                ctx.setFillColor(rgb(0x4DA3FF)); ctx.addPath(st); ctx.fillPath()
+        let writeStart = 4.3
+        var studioAt = writeStart + 4.8
+        if let pen = penData {
+            let sigW = sw * 0.50, kScr = sigW / pen.w, sigH = pen.h * kScr
+            let pxW = Int(sigW * px), pxH = Int(sigH * px), kPx = CGFloat(pxW) / pen.w
+            if let ctx = CGContext(data: nil, width: pxW, height: pxH, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
+                                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) {
+                ctx.translateBy(x: 0, y: CGFloat(pxH)); ctx.scaleBy(x: kPx, y: -kPx)
+                let sprite = SKSpriteNode(color: .clear, size: CGSize(width: sigW, height: sigH))
+                let center = CGPoint(x: rect.midX, y: rect.maxY - sh * 0.665)
+                sprite.position = center
+                ov2.addChild(sprite)
+                let glowTex = SKTexture(cgImage: makeImage(128, 128) { c in
+                    c.drawRadialGradient(gradient([rgb(0xBEDCFF, 0.95), rgb(0x78AAFF, 0)], [0, 1]), startCenter: CGPoint(x: 64, y: 64), startRadius: 0,
+                                         endCenter: CGPoint(x: 64, y: 64), endRadius: 64, options: [])
+                })
+                let glow = SKSpriteNode(texture: glowTex, size: CGSize(width: sh * 0.07, height: sh * 0.07)); glow.alpha = 0; glow.blendMode = .add
+                ov2.addChild(glow)
+                studioAt = writeStart + pen.total + 0.25
+                sprite.run(.customAction(withDuration: dur) { _, e in
+                    let t = Double(e) - writeStart
+                    guard t >= 0 else { return }
+                    if pen.advance(to: t, ctx: ctx), let img = ctx.makeImage() { sprite.texture = SKTexture(cgImage: img) }
+                    let writing = t < pen.total && pen.next > 0
+                    glow.alpha = writing ? 1 : 0
+                    if writing {
+                        glow.position = CGPoint(x: center.x - sigW / 2 + pen.tip.x * kScr, y: center.y + sigH / 2 - pen.tip.y * kScr)
+                    }
+                })
             }
         }
-        let word = SKSpriteNode(texture: SKTexture(cgImage: wordImg), size: rect.size)
-        word.position = CGPoint(x: rect.midX, y: rect.midY - sh * 0.10); word.alpha = 0
-        ov2.addChild(word)
-        word.run(.sequence([.wait(forDuration: 4.1), .fadeIn(withDuration: 0.8)]))
+        let label = SKLabelNode()
+        label.attributedText = NSAttributedString(string: "STUDIO", attributes: [
+            .font: NSFont(name: "HelveticaNeue-Bold", size: max(12, sh * 0.034)) ?? NSFont.boldSystemFont(ofSize: 14),
+            .foregroundColor: nsc(0x4DA3FF), .kern: sh * 0.018])
+        label.position = CGPoint(x: rect.midX + sh * 0.009, y: rect.maxY - sh * 0.835); label.alpha = 0
+        ov2.addChild(label)
+        label.run(.sequence([.wait(forDuration: studioAt), .fadeIn(withDuration: 0.8)]))
         overlaySKScene = ov2
 
         // zakończenie
-        holder.runAction(.sequence([.wait(duration: Self.duration), .run { [weak self] _ in DispatchQueue.main.async { self?.finish() } }]))
+        holder.runAction(.sequence([.wait(duration: dur), .run { [weak self] _ in DispatchQueue.main.async { self?.finish() } }]))
         if env["BILARD_INTRO3D_DEBUG"] != nil { print("INTRO3D frontU=\(u)") }
     }
 }
