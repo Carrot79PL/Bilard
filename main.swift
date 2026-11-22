@@ -91,6 +91,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func showIntro() {
+        if env["BILARD_OLDINTRO"] == nil {
+            let v = Intro3DView(frame: container.bounds)
+            v.autoresizingMask = [.width, .height]
+            container.addSubview(v)
+            v.build()
+            v.onDone = { [weak self] in self?.window.makeFirstResponder(self?.controller.scnView) }
+            window.makeFirstResponder(v)
+            return
+        }
         let sk = IntroView(frame: container.bounds)
         sk.autoresizingMask = [.width, .height]
         sk.wantsLayer = true

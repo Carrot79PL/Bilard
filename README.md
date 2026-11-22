@@ -5,7 +5,7 @@
 Natywna gra bilardowa 3D na macOS: **ósemka, dziewiątka, dziesiątka, 14/1 i snooker**, z własną fizyką bil, przeciwnikiem komputerowym na trzech poziomach, trybem turniejowym i fotorealistyczną grafiką. Napisana w Swift, SceneKit (Metal) i SwiftUI, bez silnika gier.
 🇬🇧 *A native 3D pool game for macOS: 8-ball, 9-ball, 10-ball, straight pool (14.1) and snooker, with custom ball physics, three AI levels, a tournament mode and photoreal graphics. Pure Swift, SceneKit (Metal) and SwiftUI — no game engine.*
 
-**Wersja:** 1.3  ·  **Autor:** Tomasz Marchewka
+**Wersja:** 1.3.1  ·  **Autor:** Tomasz Marchewka
 
 ![Bilard — celowanie w ósemkę](docs/screenshot.jpg)
 
@@ -20,6 +20,12 @@ Natywna gra bilardowa 3D na macOS: **ósemka, dziewiątka, dziesiątka, 14/1 i s
 | ![Wygląd](docs/look.jpg) | ![Wyzwania](docs/challenges.jpg) |
 
 ![Menu klasyczne](docs/menu.jpg)
+
+## Nowości w wersji 1.3.1
+
+- **Nowe intro w 3D:** czarna ósemka z lakierem toczy się po ciemnym tle, a w jej białym polu „8” zmienia się w pomarańczową marchewkę, która przechodzi w niebieską (znak studia BLUEROOT). Dawne intro: zmienna `BILARD_OLDINTRO`.
+- **Nowe logo na ekranie tytułowym:** trójkąt z bil nad napisem BILARD, w którym „I” jest kijem bilardowym.
+- **Dynamiczna rozdzielczość** (Grafika): gra obniża skalę 3D, gdy liczba klatek spada poniżej 50, i ostrożnie ją przywraca.
 
 ## Nowości w wersji 1.3
 
@@ -115,7 +121,7 @@ Aby użyć Xcode: utwórz projekt macOS App, dodaj wszystkie pliki `.swift` (pli
 | `HUDView.swift`, `MenuViews.swift`, `Settings.swift`, `Personalize.swift`, `Tournament*.swift`, `SaveGame.swift` | interfejs, ustawienia, personalizacja, turniej, zapis |
 | `AudioEngine.swift`, `MusicEngine.swift` | dźwięk 3D, muzyka i brawa |
 | `ClothMenu.swift`, `Emblems.swift`, `Confetti.swift`, `Challenges.swift`, `HDRSupport.swift`, `HDRIBackground.swift` | menu na suknie, emblematy, konfetti, wyzwania i trofea, HDR |
-| `SelfTest.swift` | test bezokienkowy AI vs AI |
+| `SelfTest.swift`, `Intro3D.swift` | test bezokienkowy AI vs AI, intro w 3D |
 | `Resources/Shaders.metal` | shadery (modyfikatory SceneKit) |
 
 ## Podziękowania i licencje zasobów

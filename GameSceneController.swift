@@ -41,12 +41,50 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
     var benchDone = false
     var sweepDone = false
     var shownFrames = 0, shownT0 = CACurrentMediaTime()
+    // dynamiczna rozdzielczość: mnożnik skali 3D (1 = ustawienie użytkownika), zmieniany gdy klatki spadają
+    var dynScale = 1.0
+    var adaptFrames = 0, adaptT0 = CACurrentMediaTime(), adaptLowRun = 0, adaptGoodRun = 0, adaptHold = 12.0, adaptNextTry = 0.0, adaptLastGrow = -1.0
     var hudChanges = 0
     var hudSink: AnyCancellable?
+    /// Co sekundę: gdy klatki są wyraźnie poniżej 60, obniża skalę 3D (do 60%), a po dłuższej stabilności ostrożnie ją podnosi
+    func adaptiveStep(_ fpsNow: Double, now: Double) {
+        guard Settings.shared.adaptiveRes, ready, simTime > 4 else { return }
+        let low = Double(env["BILARD_DYNLOW"] ?? "") ?? 50.0   // próg klatek (test: zmienna środowiskowa)
+        if fpsNow < low {
+            adaptLowRun += 1; adaptGoodRun = 0
+            if adaptLowRun >= 2 && dynScale > 0.6 {
+                adaptLowRun = 0
+                // jeśli niedawno podnieśliśmy skalę i znów spadło – następna próba wzrostu dopiero za dłuższy czas
+                if adaptLastGrow > 0 && now - adaptLastGrow < 8 { adaptHold = min(120, adaptHold * 2) }
+                let ns = max(0.6, dynScale - (fpsNow < 35 ? 0.15 : 0.08))
+                adaptNextTry = now + adaptHold
+                setDynScale(ns)
+            }
+        } else {
+            adaptLowRun = 0; adaptGoodRun += 1
+            if dynScale < 1.0 && now >= adaptNextTry && adaptGoodRun >= 5 {
+                adaptGoodRun = 0; adaptLastGrow = now
+                adaptNextTry = now + adaptHold
+                setDynScale(min(1.0, dynScale + 0.05))
+            }
+        }
+    }
+    func setDynScale(_ v: Double) {
+        dynScale = v
+        if env["BILARD_FPS"] != nil { print(String(format: "DYNSCALE -> %.2f", v)) }
+        DispatchQueue.main.async { [weak self] in self?.enforceRenderScale() }
+    }
+
     func renderer(_ renderer: SCNSceneRenderer, updateAtTime time: TimeInterval) {
         fpsCount += 1
         let n = CACurrentMediaTime()
         shownFrames += 1
+        adaptFrames += 1
+        if n - adaptT0 >= 1.0 {
+            let fpsNow = Double(adaptFrames) / (n - adaptT0)
+            adaptFrames = 0; adaptT0 = n
+            adaptiveStep(fpsNow, now: n)
+        }
         if n - shownT0 >= 0.5 {
             // @Published wolno zmieniać tylko z głównego wątku (ten callback działa na wątku renderowania)
             let show = Settings.shared.showFps

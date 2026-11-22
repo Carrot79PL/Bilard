@@ -375,6 +375,10 @@ struct MenuRoot: View {
                     Text("\(Int((s.renderScale * 100).rounded()))%").font(UI.number(11)).foregroundColor(UI.dim).frame(width: 38, alignment: .trailing)
                 }
             }
+            Row(label: "Dynamiczna rozdzielczość") {
+                Chip(title: "Włączona", selected: s.adaptiveRes, width: 90) { s.adaptiveRes = true }
+                Chip(title: "Wyłączona", selected: !s.adaptiveRes, width: 90) { s.adaptiveRes = false }
+            }
             Row(label: "Limit klatek") {
                 ForEach([60, 120], id: \.self) { f in Chip(title: "\(f) FPS", selected: s.fps == f, width: 70) { s.fps = f } }
             }

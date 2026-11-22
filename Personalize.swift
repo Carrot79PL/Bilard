@@ -106,7 +106,7 @@ extension GameSceneController {
     /// skala renderowania 3D: część natywnej rozdzielczości (HUD SwiftUI zostaje ostry – osobna warstwa)
     func applyRenderScale() {
         let bs = scnView.window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
-        let sc = max(0.25, min(1.0, Settings.shared.renderScale))
+        let sc = max(0.25, min(1.0, Settings.shared.renderScale * dynScale))
         scnView.layer?.contentsScale = bs * CGFloat(sc)
         scnView.layer?.magnificationFilter = .linear
         enforceRenderScale()
@@ -116,7 +116,7 @@ extension GameSceneController {
     func enforceRenderScale() {
         guard let ml = scnView.layer as? CAMetalLayer else { return }
         let bs = scnView.window?.backingScaleFactor ?? 2
-        let sc = CGFloat(max(0.25, min(1.0, Settings.shared.renderScale)))
+        let sc = CGFloat(max(0.25, min(1.0, Settings.shared.renderScale * dynScale)))
         let want = CGSize(width: (scnView.bounds.width * bs * sc).rounded(), height: (scnView.bounds.height * bs * sc).rounded())
         if abs(ml.contentsScale - bs * sc) > 0.001 { ml.contentsScale = bs * sc }
         if want.width >= 1 && (abs(ml.drawableSize.width - want.width) > 1 || abs(ml.drawableSize.height - want.height) > 1) {

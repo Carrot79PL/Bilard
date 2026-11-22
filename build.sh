@@ -7,7 +7,7 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 swiftc -O -swift-version 5 -target arm64-apple-macos14.0 -o "$APP/Contents/MacOS/Bilard" \
   BilliardPhysics.swift Textures.swift TextureFactory.swift TableBuilder.swift AudioEngine.swift GameStateManager.swift HUDView.swift \
-  AimIndicator.swift CameraDirector.swift TVCamera.swift ReplayRecorder.swift ShotEvaluator.swift GameSceneController.swift ChalkRack.swift SaveGame.swift Intro.swift Settings.swift Personalize.swift MenuViews.swift Tournament.swift TournamentViews.swift MusicEngine.swift Emblems.swift ClothMenu.swift Confetti.swift Challenges.swift HDRSupport.swift HDRIBackground.swift SelfTest.swift main.swift \
+  AimIndicator.swift CameraDirector.swift TVCamera.swift ReplayRecorder.swift ShotEvaluator.swift GameSceneController.swift ChalkRack.swift SaveGame.swift Intro.swift Settings.swift Personalize.swift MenuViews.swift Tournament.swift TournamentViews.swift MusicEngine.swift Emblems.swift ClothMenu.swift Confetti.swift Challenges.swift HDRSupport.swift HDRIBackground.swift SelfTest.swift Intro3D.swift main.swift \
   -framework Cocoa -framework SceneKit -framework SpriteKit -framework AVFoundation -framework SwiftUI -framework Metal -framework QuartzCore -framework ModelIO
 cp Resources/Shaders.metal Resources/blueroot.svg Resources/author.jpg "$APP/Contents/Resources/"
 [ -d Assets ] && cp -R Assets "$APP/Contents/Resources/"
@@ -26,7 +26,7 @@ cat > "$APP/Contents/Info.plist" <<'EOF'
   <key>CFBundleExecutable</key><string>Bilard</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.3</string>
+  <key>CFBundleShortVersionString</key><string>1.3.1</string>
   <key>CFBundleVersion</key><string>1</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.sports-games</string>
