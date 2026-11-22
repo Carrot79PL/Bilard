@@ -1,0 +1,4 @@
+build/
+Bilard.app/
+.DS_Store
+Resources/AppIcon.icns
