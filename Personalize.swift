@@ -8,6 +8,11 @@ extension GameSceneController {
         let st = Settings.shared
         TableBuilder.styleCue(table.cue, st.cue)
         styleTable(table)
+        let cmNow = clothMenuOn
+        if let was = cmUI.prevOn, was != cmNow {          // przełączenie w ustawieniach: demo startuje, panel zostaje otwarty
+            if cmNow { if phase == .menu && !demo { demoPending = true }; model.menuTab = 5; model.panelOpen = true } else { model.panelOpen = false }
+        }
+        cmUI.prevOn = cmNow
         clothNormalBase = 0.55 * st.cloth.weave
         lastClothNormal = -1
         applyBallSet()
@@ -22,6 +27,11 @@ extension GameSceneController {
             m.multiply.contents = TableBuilder.clothColor()
             let t = SCNMatrix4MakeScale(k, k, 1)
             m.diffuse.contentsTransform = t; m.normal.contentsTransform = t; m.roughness.contentsTransform = t
+        }
+        if let en = table.emblem {
+            let img = Emblems.image(st.emblemId)
+            en.isHidden = img == nil
+            en.geometry?.firstMaterial?.diffuse.contents = img
         }
         table.cushionMaterial?.multiply.contents = TableBuilder.cushionColor()
         let f = st.finish
@@ -115,6 +125,7 @@ extension GameSceneController {
     }
 
     func applyGraphics() {
+        HDRSupport.apply(Settings.shared.hdr, to: scnView)
         applyRenderScale()
         if ProcessInfo.processInfo.environment["BILARD_PLAIN"]?.contains("a") != true { ssaoBase = Settings.shared.ssao ? 0.7 : 0 }
         let st = Settings.shared
@@ -129,6 +140,7 @@ extension GameSceneController {
         }
         if let cam = cameraNode.camera {
             cam.bloomIntensity = st.bloom ? 0.04 : 0
+            cam.whitePoint = st.hdr ? 1.6 : 2.2          // HDR: szersze światła, mniej ściskania jasnych partii
             cam.wantsDepthOfField = st.dof
         }
         table.shafts.isHidden = !st.dust

@@ -72,7 +72,7 @@ struct TournamentTab: View {
                                     Text(p.isAI ? "Komputer · \(AILevel(rawValue: p.level)?.title ?? "")" : "Człowiek").font(.system(size: 9.5)).foregroundColor(UI.dim)
                                 }
                                 Spacer()
-                                Image(systemName: on ? "checkmark.circle.fill" : "circle").foregroundColor(on ? UI.accent : UI.faint)
+                                Image(systemName: on ? "checkmark.circle.fill" : "circle").foregroundColor(on ? UI.menuAccent : UI.faint)
                             }
                             .padding(.horizontal, 8).frame(height: 38)
                             .background(RoundedRectangle(cornerRadius: 9).fill(Color.white.opacity(on ? 0.14 : 0.06)))
@@ -94,7 +94,7 @@ struct TournamentTab: View {
                 } label: {
                     Text("Rozpocznij turniej").font(.system(size: 13, weight: .semibold)).foregroundColor(UI.ink)
                         .padding(.horizontal, 18).frame(height: 34)
-                        .background(RoundedRectangle(cornerRadius: 10).fill(UI.accent))
+                        .background(RoundedRectangle(cornerRadius: 10).fill(UI.menuAccent))
                 }.buttonStyle(.plain).disabled(ps.list.count < size)
             }
             if ps.list.count < size { Text("Za mało profili – dodaj graczy w zakładce „Gracze”.").font(.system(size: 10)).foregroundColor(UI.foul) }
@@ -121,7 +121,7 @@ struct TournamentTab: View {
             }.frame(height: 250)
             if let c = t.champion, let p = ps.profile(c) {
                 HStack(spacing: 10) {
-                    Image(systemName: "trophy.fill").foregroundColor(UI.accent)
+                    Image(systemName: "trophy.fill").foregroundColor(UI.menuAccent)
                     AvatarView(img: ps.face(c), name: p.name, size: 30)
                     Text("Mistrz turnieju: \(p.name)").font(.system(size: 14, weight: .bold)).foregroundColor(UI.text)
                     Spacer()
@@ -131,7 +131,7 @@ struct TournamentTab: View {
                 HStack(spacing: 10) {
                     Button { playNext() } label: {
                         Text(nextLabel).font(.system(size: 13, weight: .semibold)).foregroundColor(UI.ink)
-                            .padding(.horizontal, 18).frame(height: 34).background(RoundedRectangle(cornerRadius: 10).fill(UI.accent))
+                            .padding(.horizontal, 18).frame(height: 34).background(RoundedRectangle(cornerRadius: 10).fill(UI.menuAccent))
                     }.buttonStyle(.plain)
                     Spacer()
                     Chip(title: "Porzuć turniej", selected: false) { ts.abandon(); picked = [] }
@@ -164,14 +164,14 @@ struct TournamentTab: View {
             slot(mt.b, win: mt.winner != nil && mt.winner == mt.b)
         }
         .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.07)))
-        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(current ? UI.accent : Color.white.opacity(0.1), lineWidth: current ? 1.5 : 1))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(current ? UI.menuAccent : Color.white.opacity(0.1), lineWidth: current ? 1.5 : 1))
     }
 
     func slot(_ id: String?, win: Bool) -> some View {
         HStack(spacing: 5) {
             if let id, let p = ps.profile(id) {
                 AvatarView(img: ps.face(id), name: p.name, size: 18)
-                Text(p.name).font(.system(size: 10.5, weight: win ? .bold : .regular)).foregroundColor(win ? UI.accent : UI.text).lineLimit(1)
+                Text(p.name).font(.system(size: 10.5, weight: win ? .bold : .regular)).foregroundColor(win ? UI.menuAccent : UI.text).lineLimit(1)
                 if !p.isAI { Image(systemName: "person.fill").font(.system(size: 7)).foregroundColor(UI.dim) }
             } else {
                 Text("—").font(.system(size: 10.5)).foregroundColor(UI.faint)

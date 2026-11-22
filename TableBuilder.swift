@@ -12,6 +12,7 @@ struct TableNodes {
     var glare: [SCNNode] = []
     var contact: [SCNNode] = []
     var decals: [SCNNode] = []
+    var emblem: SCNNode? = nil       // biały emblemat na środku sukna
     var probe: SCNLight? = nil
     var probeNode: SCNNode? = nil
     var probeLight: SCNLight? = nil
@@ -438,7 +439,7 @@ enum TableBuilder {
         let fm = pbr(pack.woodAlbedo, rough: 0.6, metal: 0)
         fm.multiply.contents = nsc(0x5A4A40)
         fm.diffuse.wrapS = .repeat; fm.diffuse.wrapT = .repeat; fm.diffuse.mipFilter = .linear; fm.diffuse.maxAnisotropy = 16
-        fm.diffuse.contentsTransform = SCNMatrix4MakeScale(0.6, 0.6, 1)
+        fm.diffuse.contentsTransform = SCNMatrix4MakeScale(2.2, 2.2, 1)
         floor.materials = [fm]
         // miękki cień stołu i nóg na podłodze (reflektory są zbyt słabe, by rzucić go same)
         let fsW = 2 * (X + railW) + 0.9, fsH = 2 * (Y + railW) + 0.9
@@ -519,6 +520,26 @@ enum TableBuilder {
             t.decals.append(dn)
             dn.castsShadow = false
             root.addChildNode(dn)
+        }
+
+        // --- emblemat na środku sukna (wybierany w menu Wygląd)
+        if envv["BILARD_NODECAL"] == nil {
+            let em = SCNMaterial()
+            em.lightingModel = .constant
+            em.blendMode = .add
+            em.diffuse.mipFilter = .linear; em.diffuse.minificationFilter = .linear; em.diffuse.maxAnisotropy = 16
+            em.diffuse.contents = Emblems.image(Settings.shared.emblemId)
+            em.writesToDepthBuffer = false
+            let ep = SCNPlane(width: 1.15 * W, height: 1.15 * W)
+            ep.materials = [em]
+            let en = SCNNode(geometry: ep)
+            en.eulerAngles.x = -.pi / 2
+            en.position.y = 0.0014
+            en.renderingOrder = 4
+            en.castsShadow = false
+            en.isHidden = Settings.shared.emblemId == "none"
+            t.decals.append(en); t.emblem = en
+            root.addChildNode(en)
         }
 
         // --- miękkie cienie kontaktowe pod bilami + anamorficzny blask na refleksach
@@ -936,6 +957,19 @@ enum TableBuilder {
         let bt = SCNCone(topRadius: 0.0100, bottomRadius: 0.0170, height: 0.72)
         part(bt, butt, -0.74 - 0.36)
         part(SCNCylinder(radius: 0.0172, height: 0.03), ring, -1.46)
+        // ozdobne pierścienie na kolbie (widoczność wg definicji kija)
+        let band = pbr(nsc(0xC9A24A), rough: 0.25, metal: 1)
+        band.name = "band"
+        for i in 0..<5 {
+            let y = -0.80 - Double(i) * 0.12
+            let r = 0.0100 + (-y - 0.74) / 0.72 * 0.0070 + 0.0004
+            let g = SCNCylinder(radius: CGFloat(r), height: i % 2 == 0 ? 0.008 : 0.014)
+            g.materials = [band]
+            let n = SCNNode(geometry: g)
+            n.position = SCNVector3(0, y, 0)
+            n.name = "band\(i)"
+            cue.addChildNode(n)
+        }
         cue.castsShadow = true
         styleCue(cue, Settings.shared.cue)
         return cue
@@ -944,6 +978,7 @@ enum TableBuilder {
     /// wygląd kija wg definicji (kolory, wykończenie; neon = poświata pierścieni)
     static func styleCue(_ cue: SCNNode, _ def: CueDef) {
         cue.enumerateHierarchy { n, _ in
+            if let nn = n.name, nn.hasPrefix("band"), let i = Int(nn.dropFirst(4)) { n.isHidden = i >= def.bands }
             guard let m = n.geometry?.firstMaterial, let nm = m.name else { return }
             switch nm {
             case "shaft":
@@ -954,6 +989,9 @@ enum TableBuilder {
                 if def.id == "maple" { m.diffuse.contents = pack.buttAlbedo; m.normal.contents = pack.buttNormal; m.roughness.contents = pack.buttRough }
                 else { m.diffuse.contents = nsc(def.butt); m.normal.contents = def.id == "carbon" ? nil : pack.buttNormal; m.roughness.contents = def.id == "carbon" ? 0.14 : 0.3 }
                 m.emission.contents = def.glow.map { nsc($0) }; m.emission.intensity = def.glow == nil ? 0 : 0.18
+            case "band":
+                m.diffuse.contents = nsc(def.accent ?? def.ring); m.metalness.contents = def.metalRing ? 1.0 : 0.2; m.roughness.contents = 0.25
+                m.emission.contents = def.glow.map { nsc($0) }; m.emission.intensity = def.glow == nil ? 0 : 2.0
             case "ring":
                 m.diffuse.contents = nsc(def.ring); m.metalness.contents = def.metalRing ? 1.0 : 0.2; m.roughness.contents = 0.3
                 m.emission.contents = def.glow.map { nsc($0) }; m.emission.intensity = def.glow == nil ? 0 : 2.2
@@ -966,6 +1004,11 @@ enum TableBuilder {
     static var envIntensity: CGFloat { CGFloat(Double(ProcessInfo.processInfo.environment["BILARD_ENV"] ?? "") ?? 0.35) }
     static var bgIntensity: CGFloat { CGFloat(Double(ProcessInfo.processInfo.environment["BILARD_BG"] ?? "") ?? 0.45) }
     static func configureEnvironment(_ scene: SCNScene) {
+        // mgła w kolorze tła: podłoga rozpuszcza się płynnie w horyzoncie zamiast ostrej krawędzi
+        scene.fogColor = nsc(0x15110E)
+        scene.fogStartDistance = 5
+        scene.fogEndDistance = 20
+        scene.fogDensityExponent = 1.0
         if let u = Scans.hdriURL {
             // prawdziwa sala bilardowa (Poly Haven, CC0): światło otoczenia, odbicia w bilach i tło
             scene.lightingEnvironment.contents = u
@@ -975,9 +1018,15 @@ enum TableBuilder {
                 scene.background.intensity = bgIntensity
             } else {
                 // HDRI tylko jako światło i odbicia; tło = ciemna sala w tonacji podłogi, zanikająca w ciemność
-                scene.background.contents = makeImage(1024, 512) { ctx in
-                    ctx.drawLinearGradient(gradient([rgb(0x0E0B09), rgb(0x1C1612), rgb(0x241C17), rgb(0x120E0C), rgb(0x040303)], [0, 0.45, 0.52, 0.68, 1]),
-                                           start: CGPoint(x: 0, y: 0), end: CGPoint(x: 0, y: 512), options: [])
+                scene.background.contents = makeImage(256, 1024) { ctx in
+                    ctx.drawLinearGradient(gradient([rgb(0x15110E), rgb(0x15110E), rgb(0x15110E), rgb(0x15110E)], [0, 0.4, 0.6, 1]),
+                                           start: CGPoint(x: 0, y: 0), end: CGPoint(x: 0, y: 1024), options: [])
+                    // delikatny dithering ±1, żeby nie było widać pasów (banding) w ciemnych tonach
+                    var g = SeededGen(s: 77)
+                    for y in 0..<1024 { for x in stride(from: 0, to: 256, by: 2) {
+                        let v = CGFloat(g.next() % 100) / 100
+                        ctx.setFillColor(CGColor(gray: 1, alpha: 0.012 * v)); ctx.fill(CGRect(x: x, y: y, width: 2, height: 1))
+                    } }
                 }
                 scene.background.intensity = 1
             }

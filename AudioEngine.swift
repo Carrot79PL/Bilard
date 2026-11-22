@@ -22,6 +22,7 @@ final class GameAudio {
     private var cueTaps: [AVAudioPCMBuffer] = []
     private var drops: [AVAudioPCMBuffer] = []
     private var started = false
+    private var applauseBuf: AVAudioPCMBuffer?
     private var rollLevel: Float = 0
 
     /// M: wycisza całość (efekty i muzykę)
@@ -111,6 +112,92 @@ final class GameAudio {
     }
     func pocket(at p: V2) {
         play(drops[Int.random(in: 0..<2)], at: SIMD3(Float(p.x), -0.02, Float(p.y)), volume: 0.8)
+    }
+
+    /// oklaski publiczności po wygranej (~6 s, syntezowane: tło szumu + setki pojedynczych klaśnięć)
+    func applause() {
+        guard enabled, started else { return }
+        if applauseBuf == nil { applauseBuf = makeApplause() }
+        play(applauseBuf!, at: SIMD3(0, 0.8, 0), volume: 1.3)
+    }
+    /// Publiczność: setki pojedynczych klaśnięć (rezonans 1,2–3 kHz, 6–12 ms), mruczenie tłumu, kilka okrzyków („ooo!”)
+    /// z formantami głosu i pogłos hali. Gęstość klaskania faluje, jak przy prawdziwych brawach.
+    private func makeApplause() -> AVAudioPCMBuffer {
+        var r = SeededGen(s: 4711)
+        func u() -> Double { Double(r.next() % 100000) / 100000 }
+        let dur = 8.0, n = Int(dur * sr)
+        var dry = [Double](repeating: 0, count: n)
+        func env(_ t: Double) -> Double { min(1, t / 0.8) * (t < 4.2 ? 1 : exp(-(t - 4.2) * 0.95)) }
+        // 1) mruczenie tłumu: szum pasmowy 700–3500 Hz
+        var lp1 = 0.0, lp2 = 0.0
+        for i in 0..<n {
+            let t = Double(i) / sr
+            let x = u() * 2 - 1
+            lp1 += 0.35 * (x - lp1)                 // dolnoprzepustowy ~3 kHz
+            lp2 += 0.03 * (lp1 - lp2)               // wycina poniżej ~250 Hz
+            dry[i] += (lp1 - lp2) * 0.10 * env(t) * (0.85 + 0.15 * sin(t * 9.3))
+        }
+        // 2) pojedyncze klaśnięcia, gęstość z falowaniem
+        var placed = 0
+        while placed < 2600 {
+            let t0 = u() * 6.6
+            let dens = env(t0) * (0.65 + 0.35 * sin(2 * .pi * 2.1 * t0 + 1.3) * sin(2 * .pi * 0.35 * t0 + 0.4) + 0.2)
+            if u() > dens { continue }
+            placed += 1
+            let i0 = Int(t0 * sr)
+            let f0 = 1200 + u() * 1800, rr = 0.90 + u() * 0.07, decay = (0.006 + u() * 0.007) * sr
+            let amp = 0.05 + pow(u(), 2.2) * 0.6
+            let a1 = 2 * rr * cos(2 * .pi * f0 / sr), a2 = -rr * rr
+            var y1 = 0.0, y2 = 0.0
+            let len = Int(decay * 5)
+            for k in 0..<len where i0 + k < n {
+                let x = k < 6 ? (u() * 2 - 1) * 1.6 : (u() * 2 - 1) * 0.5          // ostry początek + ogon
+                let y = a1 * y1 + a2 * y2 + x * 0.25
+                y2 = y1; y1 = y
+                dry[i0 + k] += y * amp * exp(-Double(k) / decay)
+            }
+        }
+        // 3) okrzyki: harmoniczne z glissandem i formantami samogłoski „o/u”
+        for _ in 0..<7 {
+            let t0 = 0.5 + u() * 3.2, len = Int((0.55 + u() * 0.5) * sr), i0 = Int(t0 * sr)
+            let base = 170 + u() * 190, rise = 1.15 + u() * 0.35, amp = 0.045 + u() * 0.04
+            let f1 = 330 + u() * 120, f2 = 800 + u() * 250
+            var ph = 0.0
+            for k in 0..<len where i0 + k < n {
+                let tt = Double(k) / Double(len)
+                let f = base * (1 + (rise - 1) * sin(tt * .pi / 2)) * (1 + 0.012 * sin(Double(k) / sr * 36))     // glissando + wibrato
+                ph += 2 * .pi * f / sr
+                var s = 0.0
+                var h = 1
+                while Double(h) * f < 3800 {
+                    let hf = Double(h) * f
+                    let form = exp(-pow((hf - f1) / 220, 2)) + 0.6 * exp(-pow((hf - f2) / 350, 2)) + 0.08
+                    s += sin(Double(h) * ph) * form / Double(h)
+                    h += 1
+                }
+                let e = min(1, tt / 0.12) * pow(1 - tt, 1.3)
+                dry[i0 + k] += s * amp * e
+            }
+        }
+        // 4) pogłos hali: cztery grzebienie + dwa all-passy
+        func comb(_ x: [Double], _ ms: Double, _ g: Double) -> [Double] {
+            let d = Int(ms * sr / 1000); var o = [Double](repeating: 0, count: x.count)
+            for i in 0..<x.count { o[i] = x[i] + (i >= d ? o[i - d] * g : 0) }
+            return o
+        }
+        var wet = [Double](repeating: 0, count: n)
+        for (ms, g) in [(29.7, 0.80), (37.1, 0.78), (41.1, 0.76), (43.7, 0.74), (53.3, 0.72)] {
+            let c = comb(dry, ms, g)
+            for i in 0..<n { wet[i] += c[i] * 0.2 }
+        }
+        var out = [Float](repeating: 0, count: n)
+        var wl = 0.0
+        for i in 0..<n { wl += 0.45 * (wet[i] - wl); out[i] = Float(dry[i] * 0.6 + wl * 0.5) }
+        let fade = Int(0.4 * sr)
+        for k in 0..<fade { out[n - 1 - k] *= Float(k) / Float(fade) }
+        let peak = max(0.001, out.map { abs($0) }.max() ?? 1)
+        let g = Float(0.85) / peak
+        return make(dur) { _, i in out[i] * g }
     }
 
     // MARK: Synteza efektów

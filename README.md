@@ -5,7 +5,7 @@
 Natywna gra bilardowa 3D na macOS: **ósemka, dziewiątka, dziesiątka, 14/1 i snooker**, z własną fizyką bil, przeciwnikiem komputerowym na trzech poziomach, trybem turniejowym i fotorealistyczną grafiką. Napisana w Swift, SceneKit (Metal) i SwiftUI, bez silnika gier.
 🇬🇧 *A native 3D pool game for macOS: 8-ball, 9-ball, 10-ball, straight pool (14.1) and snooker, with custom ball physics, three AI levels, a tournament mode and photoreal graphics. Pure Swift, SceneKit (Metal) and SwiftUI — no game engine.*
 
-**Wersja:** 1.0  ·  **Autor:** Tomasz Marchewka
+**Wersja:** 1.1  ·  **Autor:** Tomasz Marchewka
 
 ![Bilard — celowanie w ósemkę](docs/screenshot.jpg)
 
@@ -13,7 +13,23 @@ Natywna gra bilardowa 3D na macOS: **ósemka, dziewiątka, dziesiątka, 14/1 i s
 |---|---|
 | ![Widok z góry](docs/top.jpg) | ![Snooker](docs/snooker.jpg) |
 
-![Menu główne](docs/menu.jpg)
+![Menu główne jako nadruk na suknie](docs/menu-cloth.jpg)
+
+| Personalizacja (20 sukien, ram i łuz, 10 kijów) | Wyzwania i trofea |
+|---|---|
+| ![Wygląd](docs/look.jpg) | ![Wyzwania](docs/challenges.jpg) |
+
+![Menu klasyczne](docs/menu.jpg)
+
+## Nowości w wersji 1.1
+
+- **Menu na suknie:** po uruchomieniu widać stół z góry i demo AI vs AI, a menu jest białym nadrukiem na suknie (bile toczą się po napisach). Stare menu zostaje do wyboru w Grafika → „Menu główne”.
+- **Emblemat na suknie:** logo BLUEROOT (domyślnie), gwiazda, korona, ósemka, róża wiatrów, ornament, brak albo własny obraz.
+- **Więcej materiałów:** po 20 rodzajów sukna, ramy stołu i okuć łuz oraz 10 kijów z ozdobnymi pierścieniami; zakładka Wygląd bez przewijania.
+- **Wyzwania i trofea:** 3 dzienne i 3 tygodniowe wyzwania, 35 trofeów (brąz, srebro, złoto, platyna), poziomy XP, seria dni i powiadomienia.
+- **Po wygranej:** konfetti opadające na stół i syntezowane brawa z okrzykami.
+- **HDR:** opcja wyjścia HDR (EDR) na ekranach, które ją obsługują.
+- **Poprawki:** mniejsze i lepiej ustawione łuzy stołu z modelu 3D, płynne przejście podłogi w horyzont, przezroczyste menu pauzy.
 
 ## Tryby gry
 
@@ -80,7 +96,8 @@ Aby użyć Xcode: utwórz projekt macOS App, dodaj wszystkie pliki `.swift` (pli
 | `TableBuilder.swift`, `TextureFactory.swift`, `Textures.swift` | stół, bile, kij, światła, materiały i tekstury |
 | `CameraDirector.swift`, `TVCamera.swift`, `ReplayRecorder.swift`, `ShotEvaluator.swift` | kamery, powtórki, ocena zagrań |
 | `HUDView.swift`, `MenuViews.swift`, `Settings.swift`, `Personalize.swift`, `Tournament*.swift`, `SaveGame.swift` | interfejs, ustawienia, personalizacja, turniej, zapis |
-| `AudioEngine.swift`, `MusicEngine.swift` | dźwięk 3D i muzyka |
+| `AudioEngine.swift`, `MusicEngine.swift` | dźwięk 3D, muzyka i brawa |
+| `ClothMenu.swift`, `Emblems.swift`, `Confetti.swift`, `Challenges.swift`, `HDRSupport.swift` | menu na suknie, emblematy, konfetti, wyzwania i trofea, HDR |
 | `Resources/Shaders.metal` | shadery (modyfikatory SceneKit) |
 
 ## Podziękowania i licencje zasobów

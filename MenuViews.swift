@@ -10,9 +10,10 @@ struct Chip: View {
     let action: () -> Void
     var body: some View {
         Button(action: action) {
-            Text(title).font(.system(size: 11.5, weight: .medium)).foregroundColor(selected ? .black : UI.text)
+            Text(title).font(.system(size: 11.5, weight: UI.menuOn && selected ? .bold : .medium)).foregroundColor(selected && !UI.menuOn ? .black : UI.text)
                 .padding(.horizontal, 10).frame(width: width, height: 26)
-                .background(Capsule().fill(selected ? UI.accent : Color.white.opacity(0.08)))
+                .background(Capsule().fill(UI.menuOn ? Color.white.opacity(selected ? 0.18 : 0.04) : (selected ? UI.menuAccent : Color.white.opacity(0.08))))
+                .overlay(Capsule().strokeBorder(UI.menuOn ? Color.white.opacity(selected ? 0.95 : 0.28) : Color.clear, lineWidth: selected ? 1.5 : 1))
         }.buttonStyle(.plain)
     }
 }
@@ -36,7 +37,7 @@ struct StatBar: View {
             Text(label).font(.system(size: 9.5)).foregroundColor(UI.faint).frame(width: 52, alignment: .leading)
             ZStack(alignment: .leading) {
                 Capsule().fill(Color.white.opacity(0.1))
-                Capsule().fill(UI.accent).frame(width: 70 * max(0.05, min(1, value)))
+                Capsule().fill(UI.menuAccent).frame(width: 70 * max(0.05, min(1, value)))
             }.frame(width: 70, height: 4)
         }
     }
@@ -48,13 +49,13 @@ struct MenuRoot: View {
     @ObservedObject var rec: RecordStore
     @State private var tab = 0
     @State private var recMode: GameMode = .eight
-    private let tabs = ["Gra", "Wygląd", "Rekordy", "Turniej", "Grafika", "Dźwięk", "O autorze"]
+    private let tabs = ["Gra", "Wygląd", "Rekordy", "Turniej", "Wyzwania", "Grafika", "Dźwięk", "O autorze"]
 
     var body: some View {
         ZStack {
             ZStack {
-                Color.black.opacity(0.28)
-                RadialGradient(colors: [.clear, .black.opacity(0.55)], center: .center, startRadius: 200, endRadius: 900)
+                Color.black.opacity(0.10)
+                RadialGradient(colors: [.clear, .black.opacity(0.32)], center: .center, startRadius: 200, endRadius: 900)
             }.ignoresSafeArea().allowsHitTesting(false)
 
             VStack(spacing: 0) {
@@ -72,7 +73,13 @@ struct MenuRoot: View {
                                 .foregroundColor(tab == i ? UI.text : UI.dim)
                                 .padding(.horizontal, 9).frame(height: 28)
                                 .background(Capsule().fill(Color.white.opacity(tab == i ? 0.14 : 0.0)))
-                                .overlay(Capsule().strokeBorder(tab == i ? UI.accent.opacity(0.7) : Color.clear, lineWidth: 1))
+                                .overlay(Capsule().strokeBorder(tab == i ? UI.menuAccent.opacity(0.95) : Color.clear, lineWidth: 1))
+                        }.buttonStyle(.plain)
+                    }
+                    if m.clothMenu {
+                        Button { m.panelOpen = false; m.savePicker = 0 } label: {
+                            Image(systemName: "xmark").font(.system(size: 11, weight: .bold)).foregroundColor(UI.text)
+                                .frame(width: 28, height: 28).background(Circle().fill(Color.white.opacity(0.14)))
                         }.buttonStyle(.plain)
                     }
                 }.padding(.top, 14)
@@ -84,18 +91,20 @@ struct MenuRoot: View {
                     case 1: lookTab
                     case 2: recordsTab
                     case 3: TournamentTab(m: m)
-                    case 4: graphicsTab
-                    case 5: audioTab
+                    case 4: ChallengesTab()
+                    case 5: graphicsTab
+                    case 6: audioTab
                     default: aboutTab
                     }
                 }
-                .frame(width: 560, height: 430, alignment: .top)
+                .frame(width: tab == 1 || tab == 4 ? 820 : 560, height: tab == 1 ? 600 : (tab == 4 ? 440 : 430), alignment: .top)
             }
             .padding(.horizontal, 36).padding(.vertical, 26)
             .fixedSize()
             .onAppear { tab = m.menuTab }
             .onReceive(m.$menuTab) { tab = $0 }
-            .panel(24, tint: 0.5)
+            .panel(24, tint: 0.05, glass: 0.3)
+            .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(Color.white.opacity(UI.menuOn ? 0.6 : 0), lineWidth: 1.5))
             .interactive()
         }
     }
@@ -109,9 +118,10 @@ struct MenuRoot: View {
                         ForEach(row, id: \.self) { gm in
                             Button { m.onSelectMode(gm) } label: {
                                 Text(gm.title).font(.system(size: 13, weight: .semibold)).tracking(1)
-                                    .foregroundColor(m.mode == gm ? .black : UI.text)
+                                    .foregroundColor(m.mode == gm && !UI.menuOn ? .black : UI.text)
                                     .frame(width: 96, height: 32)
-                                    .background(RoundedRectangle(cornerRadius: 9).fill(m.mode == gm ? UI.accent : Color.white.opacity(0.08)))
+                                    .background(RoundedRectangle(cornerRadius: 9).fill(UI.menuOn ? Color.white.opacity(m.mode == gm ? 0.18 : 0.04) : (m.mode == gm ? UI.menuAccent : Color.white.opacity(0.08))))
+                                    .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(UI.menuOn ? Color.white.opacity(m.mode == gm ? 0.95 : 0.28) : Color.clear, lineWidth: m.mode == gm ? 1.5 : 1))
                             }.buttonStyle(.plain)
                         }
                     }
@@ -161,54 +171,108 @@ struct MenuRoot: View {
             .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color.white.opacity(0.14), lineWidth: 1))
     }
 
-    // MARK: Wygląd
+    // MARK: Wygląd (bez przewijania: sekcje w wierszach z zawijanymi opcjami)
+    func lookRow<C: View>(_ label: String, @ViewBuilder _ content: () -> C) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Caps(label, size: 9).frame(width: 82, alignment: .leading).padding(.top, 7)
+            content()
+        }
+    }
+
     var lookTab: some View {
-        HStack(alignment: .top, spacing: 16) {
-            VStack(spacing: 8) {
-                LookPreview(cue: s.cueId, cloth: s.clothId, set: s.ballSetId, finish: s.finishId)
-                    .frame(width: 250, height: 170)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
-                let c = s.cue
-                VStack(alignment: .leading, spacing: 3) {
+        let c = s.cue
+        let railSel = FinishDef.tables.first { FinishDef.part($0.name, 0) == FinishDef.part(s.finish.name, 0) && $0.railTint == s.finish.railTint }?.id ?? s.finishId
+        let pocketSel = s.pocketId == "auto" ? "auto" : (FinishDef.pockets.first { FinishDef.part($0.name, 1) == FinishDef.part(s.pocketFinish.name, 1) }?.id ?? s.pocketId)
+        return VStack(alignment: .leading, spacing: 9) {
+            HStack(alignment: .top, spacing: 16) {
+                VStack(alignment: .leading, spacing: 6) {
+                    LookPreview(cue: s.cueId, cloth: s.clothId, set: s.ballSetId, finish: s.finishId)
+                        .frame(width: 215, height: 112)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
                     Text(c.name).font(.system(size: 12.5, weight: .semibold)).foregroundColor(UI.text)
-                    Text(c.blurb).font(.system(size: 10.5)).foregroundColor(UI.dim)
+                    Text(c.blurb).font(.system(size: 10.5)).foregroundColor(UI.dim).fixedSize(horizontal: false, vertical: true)
                     StatBar(label: "Linia", value: c.aimLine / 1.5)
-                    StatBar(label: "Moc", value: (c.maxPower - 0.8) / 0.3)
+                    StatBar(label: "Moc", value: (c.maxPower - 0.8) / 0.34)
                     StatBar(label: "Spin", value: (c.spinCtl - 0.7) / 0.6)
-                }.frame(width: 250, alignment: .leading)
-                Text("Wygląd i statystyki wpływają na rozgrywkę od następnego strzału.")
-                    .font(.system(size: 9.5)).foregroundColor(UI.faint).frame(width: 250, alignment: .leading)
-            }
-            ScrollView(.vertical, showsIndicators: true) { VStack(alignment: .leading, spacing: 10) {
-                Caps("Kij", size: 9)
-                FlowChips(items: CueDef.all.map { ($0.id, $0.name) }, sel: s.cueId) { s.cueId = $0 }
-                Caps("Sukno", size: 9)
-                HStack(spacing: 6) {
-                    ForEach(ClothDef.all) { c in
-                        Button { s.clothId = c.id } label: {
-                            VStack(spacing: 3) {
-                                RoundedRectangle(cornerRadius: 5).fill(Color(nsc(c.color))).frame(width: 40, height: 28)
-                                    .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(s.clothId == c.id ? UI.accent : Color.white.opacity(0.25), lineWidth: s.clothId == c.id ? 2 : 0.8))
-                                Text(c.name.components(separatedBy: " ").last ?? c.name).font(.system(size: 8.5)).foregroundColor(s.clothId == c.id ? UI.text : UI.dim)
-                            }
-                        }.buttonStyle(.plain)
+                }.frame(width: 215, alignment: .leading)
+                VStack(alignment: .leading, spacing: 6) {
+                    Caps("Kij", size: 9)
+                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 6), GridItem(.flexible(), spacing: 6)], spacing: 6) {
+                        ForEach(CueDef.all) { d in
+                            Button { s.cueId = d.id } label: {
+                                HStack(spacing: 8) {
+                                    CueStrip(d: d).frame(width: 118, height: 16)
+                                    Text(d.name).font(.system(size: 10.5, weight: s.cueId == d.id ? .bold : .regular)).foregroundColor(s.cueId == d.id ? UI.text : UI.dim).lineLimit(1)
+                                    Spacer(minLength: 0)
+                                }
+                                .padding(.horizontal, 8).frame(height: 30)
+                                .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(s.cueId == d.id ? 0.14 : 0.04)))
+                                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(s.cueId == d.id ? UI.menuAccent : Color.white.opacity(0.14), lineWidth: s.cueId == d.id ? 1.8 : 1))
+                            }.buttonStyle(.plain)
+                        }
                     }
                 }
-                Caps("Model stołu", size: 9)
-                FlowChips(items: [("model", "Model 3D"), ("classic", "Proceduralny")], sel: s.tableModelId) { s.tableModelId = $0 }
-                Text("Łuzy i bandy w fizyce dopasowane do wybranego modelu (zmiana od następnej partii)").font(.system(size: 10)).foregroundColor(UI.faint)
-                Caps("Tekstura stołu (rama)", size: 9)
-                FlowChips(items: FinishDef.tables.map { ($0.id, FinishDef.part($0.name, 0)) },
-                          sel: FinishDef.tables.first { FinishDef.part($0.name, 0) == FinishDef.part(s.finish.name, 0) && $0.railTint == s.finish.railTint }?.id ?? s.finishId) { s.finishId = $0 }
-                Caps("Tekstura łuz (okucia)", size: 9)
-                FlowChips(items: [("auto", "Jak stół")] + FinishDef.pockets.map { ($0.id, FinishDef.part($0.name, 1)) },
-                          sel: s.pocketId == "auto" ? "auto" : (FinishDef.pockets.first { FinishDef.part($0.name, 1) == FinishDef.part(s.pocketFinish.name, 1) }?.id ?? s.pocketId)) { s.pocketId = $0 }
-                Caps("Zestaw bil", size: 9)
-                FlowChips(items: BallSetDef.all.map { ($0.id, $0.name) }, sel: s.ballSetId) { s.ballSetId = $0 }
-                Text(s.ballSet.blurb).font(.system(size: 10)).foregroundColor(UI.faint)
-            }.padding(.trailing, 8) }.frame(height: 430)
+            }
+            Rectangle().fill(UI.line).frame(height: 1)
+            lookRow("Sukno") {
+                FlowLayout(spacing: 6) {
+                    ForEach(ClothDef.all) { d in
+                        Button { s.clothId = d.id } label: {
+                            RoundedRectangle(cornerRadius: 5).fill(Color(nsc(d.color))).frame(width: 28, height: 20)
+                                .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(s.clothId == d.id ? UI.menuAccent : Color.white.opacity(0.22), lineWidth: s.clothId == d.id ? 2.2 : 0.8))
+                        }.buttonStyle(.plain).help(d.name)
+                    }
+                }
+            }
+            lookRow("Emblemat") {
+                WrapChips(items: EmblemDef.all.filter { $0.id != "custom" || Emblems.hasCustom }.map { ($0.id, $0.name) } + [("+", Emblems.hasCustom ? "Zmień własny…" : "Własny obraz…")], sel: s.emblemId) { id in
+                    if id == "+" { Emblems.pickCustom { ok in if ok { s.emblemId = "custom" } } } else { s.emblemId = id }
+                }
+            }
+            lookRow("Model stołu") { WrapChips(items: [("model", "Model 3D"), ("classic", "Proceduralny")], sel: s.tableModelId) { s.tableModelId = $0 } }
+            lookRow("Rama stołu") {
+                FlowLayout(spacing: 6) {
+                    ForEach(FinishDef.tables) { d in
+                        Button { s.finishId = d.id } label: {
+                            RoundedRectangle(cornerRadius: 6).fill(Self.railColor(d)).frame(width: 26, height: 22)
+                                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(railSel == d.id ? UI.menuAccent : Color.white.opacity(0.22), lineWidth: railSel == d.id ? 2.2 : 0.8))
+                        }.buttonStyle(.plain).help(FinishDef.part(d.name, 0))
+                    }
+                }
+            }
+            lookRow("Łuzy") {
+                FlowLayout(spacing: 6) {
+                    Button { s.pocketId = "auto" } label: {
+                        Text("Jak stół").font(.system(size: 9.5, weight: .medium)).foregroundColor(UI.text).padding(.horizontal, 7).frame(height: 24)
+                            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(pocketSel == "auto" ? UI.menuAccent : Color.white.opacity(0.22), lineWidth: pocketSel == "auto" ? 2 : 0.8))
+                    }.buttonStyle(.plain)
+                    ForEach(FinishDef.pockets) { d in
+                        Button { s.pocketId = d.id } label: {
+                            Circle().fill(Self.metalGradient(d)).frame(width: 24, height: 24)
+                                .overlay(Circle().strokeBorder(pocketSel == d.id ? UI.menuAccent : Color.white.opacity(0.22), lineWidth: pocketSel == d.id ? 2.2 : 0.8))
+                        }.buttonStyle(.plain).help(FinishDef.part(d.name, 1))
+                    }
+                }
+            }
+            lookRow("Zestaw bil") { WrapChips(items: BallSetDef.all.map { ($0.id, $0.name) }, sel: s.ballSetId) { s.ballSetId = $0 } }
+            Text("Sukno: \(s.cloth.name) · Rama: \(FinishDef.part(s.finish.name, 0)) · Łuzy: \(FinishDef.part(s.pocketFinish.name, 1)) · Bile: \(s.ballSet.name)")
+                .font(.system(size: 10)).foregroundColor(UI.dim)
+            Text("Najedź na próbkę, by zobaczyć nazwę. Model stołu i statystyki kija działają od następnej partii.")
+                .font(.system(size: 9.5)).foregroundColor(UI.faint)
         }
+    }
+
+    static func railColor(_ d: FinishDef) -> Color {
+        let t = d.railTint
+        var r = Double((t >> 16) & 0xFF) / 255, g = Double((t >> 8) & 0xFF) / 255, b = Double(t & 0xFF) / 255
+        if d.natural && !d.solid { r *= 0.55; g *= 0.36; b *= 0.22 }   // drewno orzecha × barwa
+        return Color(red: min(1, r * (d.natural ? 1.4 : 1)), green: min(1, g * (d.natural ? 1.4 : 1)), blue: min(1, b * (d.natural ? 1.4 : 1)))
+    }
+    static func metalGradient(_ d: FinishDef) -> LinearGradient {
+        let c = Color(nsc(d.fittingTint))
+        let stops: [Color] = d.mirror ? [.white.opacity(0.95), c, c.opacity(0.55), c, .white.opacity(0.7)] : [c.opacity(0.95), c.opacity(0.7), c.opacity(0.9)]
+        return LinearGradient(colors: stops, startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
     // MARK: Rekordy
@@ -254,11 +318,15 @@ struct MenuRoot: View {
     // MARK: Grafika
     var graphicsTab: some View {
         VStack(alignment: .leading, spacing: 11) {
+            Row(label: "Menu główne") {
+                Chip(title: "Na suknie (demo)", selected: s.clothMenu) { s.clothMenu = true }
+                Chip(title: "Klasyczne", selected: !s.clothMenu) { s.clothMenu = false }
+            }
             Row(label: "Preset") {
                 ForEach(GfxPreset.allCases.dropLast(), id: \.rawValue) { p in
                     Chip(title: p.title, selected: s.preset == p.rawValue) { s.setPreset(p) }
                 }
-                if s.preset == GfxPreset.custom.rawValue { Text("Własne").font(.system(size: 11)).foregroundColor(UI.accent) }
+                if s.preset == GfxPreset.custom.rawValue { Text("Własne").font(.system(size: 11)).foregroundColor(UI.menuAccent) }
             }
             Rectangle().fill(UI.line).frame(height: 1)
             Row(label: "Tekstury (bile, sukno)") {
@@ -275,11 +343,15 @@ struct MenuRoot: View {
                 }
             }
             Row(label: "Post-processing") {
-                toggle("Bloom", $s.bloom); toggle("Głębia ostrości", $s.dof); toggle("Pył w świetle", $s.dust); toggle("SSAO (wolne)", $s.ssao); toggle("Licznik FPS", $s.showFps); toggle("Tło panelu sterowania", $s.dockBg)
+                toggle("HDR", $s.hdr); toggle("Bloom", $s.bloom); toggle("Głębia ostrości", $s.dof); toggle("Pył w świetle", $s.dust); toggle("SSAO (wolne)", $s.ssao); toggle("Licznik FPS", $s.showFps); toggle("Tło panelu sterowania", $s.dockBg)
+            }
+            if s.hdr {
+                Text(HDRSupport.available ? "HDR: ekran obsługuje rozszerzony zakres jasności (\(String(format: "%.1f", HDRSupport.headroom))×), światła są jaśniejsze." : "HDR: ten ekran nie obsługuje rozszerzonego zakresu jasności, więc efekt jest ograniczony do szerszych świateł.")
+                    .font(.system(size: 10)).foregroundColor(UI.faint)
             }
             Row(label: "Rozdzielczość 3D") {
                 HStack(spacing: 8) {
-                    Slider(value: $s.renderScale, in: 0.25...1.0, step: 0.05).frame(width: 240).tint(UI.accent)
+                    Slider(value: $s.renderScale, in: 0.25...1.0, step: 0.05).frame(width: 240).tint(UI.menuAccent)
                     Text("\(Int((s.renderScale * 100).rounded()))%").font(UI.number(11)).foregroundColor(UI.dim).frame(width: 38, alignment: .trailing)
                 }
             }
@@ -318,7 +390,7 @@ struct MenuRoot: View {
 
     func slider(_ b: Binding<Double>) -> some View {
         HStack(spacing: 8) {
-            Slider(value: b, in: 0...1).frame(width: 240).tint(UI.accent)
+            Slider(value: b, in: 0...1).frame(width: 240).tint(UI.menuAccent)
             Text("\(Int(b.wrappedValue * 100))%").font(UI.number(11)).foregroundColor(UI.dim).frame(width: 38, alignment: .trailing)
         }
     }
@@ -329,7 +401,7 @@ struct MenuRoot: View {
         return ScrollView {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Bilard · wersja \(v)").font(.system(size: 17, weight: .bold)).foregroundColor(UI.text)
-                Text("Autor: Tomasz Marchewka · studio BLUEROOT").font(.system(size: 13)).foregroundColor(UI.accent)
+                Text("Autor: Tomasz Marchewka · studio BLUEROOT").font(.system(size: 13)).foregroundColor(UI.menuAccent)
                 Text("Natywna gra na macOS napisana w Swift z SceneKit/Metal: własna fizyka bil, tryby 8/9/10-Ball, 14/1 i snooker, komputerowy przeciwnik i muzyka syntezowana na żywo. Dziękuję za granie!")
                     .font(.system(size: 12)).foregroundColor(UI.dim).fixedSize(horizontal: false, vertical: true)
                 Rectangle().fill(UI.line).frame(height: 1)
@@ -451,5 +523,72 @@ struct LookPreview: NSViewRepresentable {
         q.position = SCNVector3(-0.1, 0.045, 0.0)
         rig.addChildNode(q)
         _ = st
+    }
+}
+
+
+/// opcje zawijane w wiersze (zamiast jednej długiej kolumny)
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 5
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let w = proposal.width ?? 400
+        var x: CGFloat = 0, y: CGFloat = 0, rowH: CGFloat = 0
+        for v in subviews {
+            let sz = v.sizeThatFits(.unspecified)
+            if x + sz.width > w, x > 0 { x = 0; y += rowH + spacing; rowH = 0 }
+            x += sz.width + spacing; rowH = max(rowH, sz.height)
+        }
+        return CGSize(width: w, height: y + rowH)
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX, y = bounds.minY, rowH: CGFloat = 0
+        for v in subviews {
+            let sz = v.sizeThatFits(.unspecified)
+            if x + sz.width > bounds.maxX, x > bounds.minX { x = bounds.minX; y += rowH + spacing; rowH = 0 }
+            v.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(sz))
+            x += sz.width + spacing; rowH = max(rowH, sz.height)
+        }
+    }
+}
+
+struct WrapChips: View {
+    let items: [(String, String)]
+    let sel: String
+    let pick: (String) -> Void
+    var body: some View {
+        FlowLayout(spacing: 5) {
+            ForEach(items, id: \.0) { it in Chip(title: it.1, selected: sel == it.0) { pick(it.0) } }
+        }
+    }
+}
+
+
+/// miniatura kija: końcówka, trzonek, kolba z pierścieniami (kolory z definicji)
+struct CueStrip: View {
+    let d: CueDef
+    var body: some View {
+        Canvas { ctx, size in
+            func col(_ c: UInt32) -> Color { Color(nsc(c)) }
+            let y = size.height / 2, w = size.width, split = w * 0.5
+            var shaft = Path()
+            shaft.move(to: CGPoint(x: 0, y: y - 2)); shaft.addLine(to: CGPoint(x: split, y: y - 3.3))
+            shaft.addLine(to: CGPoint(x: split, y: y + 3.3)); shaft.addLine(to: CGPoint(x: 0, y: y + 2)); shaft.closeSubpath()
+            ctx.fill(shaft, with: .color(col(d.shaft)))
+            var butt = Path()
+            butt.move(to: CGPoint(x: split, y: y - 3.6)); butt.addLine(to: CGPoint(x: w, y: y - 6))
+            butt.addLine(to: CGPoint(x: w, y: y + 6)); butt.addLine(to: CGPoint(x: split, y: y + 3.6)); butt.closeSubpath()
+            if let g = d.glow { ctx.drawLayer { l in l.addFilter(.shadow(color: col(g).opacity(0.9), radius: 3)); l.fill(butt, with: .color(col(d.butt))) } }
+            else { ctx.fill(butt, with: .color(col(d.butt))) }
+            ctx.fill(Path(CGRect(x: 0, y: y - 2, width: 4, height: 4)), with: .color(col(0xF4F1E8)))
+            ctx.fill(Path(CGRect(x: split - 1.5, y: y - 3.8, width: 3, height: 7.6)), with: .color(col(d.ring)))
+            ctx.fill(Path(CGRect(x: w - 3, y: y - 6.2, width: 3, height: 12.4)), with: .color(col(d.ring)))
+            let accent = col(d.accent ?? d.ring)
+            for i in 0..<d.bands {
+                let x = split + (w - split) * (0.22 + 0.14 * CGFloat(i))
+                let hh = 3.8 + (x - split) / (w - split) * 2.3
+                if let g = d.glow { ctx.drawLayer { l in l.addFilter(.shadow(color: col(g), radius: 2)); l.fill(Path(CGRect(x: x, y: y - hh, width: 2.2, height: hh * 2)), with: .color(col(g))) } }
+                else { ctx.fill(Path(CGRect(x: x, y: y - hh, width: i % 2 == 0 ? 2.2 : 3.4, height: hh * 2)), with: .color(accent)) }
+            }
+        }
     }
 }

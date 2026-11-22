@@ -678,6 +678,9 @@ final class GameModel: ObservableObject {
     let settings = Settings.shared
     @Published var faces: [NSImage?] = [nil, nil]
     @Published var showFaces = false
+    @Published var toast: ToastItem? = nil                // powiadomienie o wyzwaniu / trofeum
+    @Published var clothMenu = false                      // menu główne jako nadruk na suknie (nad demem)
+    @Published var panelOpen = false                      // panel ustawień otwarty nad demem
     @Published var menuTab = Int(ProcessInfo.processInfo.environment["BILARD_TAB"] ?? "") ?? 0
     @Published var tournamentActive = false
     var onStartMatch: (Int, Int) -> Void = { _, _ in }

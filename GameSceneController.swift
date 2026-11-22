@@ -155,6 +155,14 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
     var demoFocus: (ball: Int?, pocket: Int?) = (nil, nil)
     let fx = ChalkRackState()
     var chalkTested = false
+    let cmUI = ClothMenuUI()
+    var confettiNode: SCNNode?
+    var confettiPieces: [ConfettiPiece] = []
+    var confettiT = 0.0
+    var toastQueue: [ToastItem] = []
+    var toastBusy = false
+    var chTested = false
+    var cmTestTick = -1, cmActDone = 0
     let rig = SCNNode()                 // stół + kamera + nakładki (tożsamość; zostawione po próbie menu z okręgiem)
     var suspendedPhase: Phase? = nil   // „Wznów grę”: faza gry zawieszonej wyjściem do menu
     var resumeTestT = 0.0, resumeTestN = 0
@@ -271,6 +279,7 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
     func buildScene(_ pack: TexturePack) {
         table = TableBuilder.build(blueCloth: model.blueCloth, pack: pack)
         scene.rootNode.addChildNode(rig)
+        rig.addChildNode(cmUI.node)
         makeCallNodes()
         rig.addChildNode(table.root)
         if env["BILARD_DUMP"] != nil {   // diagnostyka: geometrie leżące w pobliżu płaszczyzny sukna (z-fighting)
@@ -287,7 +296,7 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
 
         // kamera: HDR, tone mapping, bloom
         let cam = SCNCamera()
-        cam.zNear = 0.02; cam.zFar = 30
+        cam.zNear = 0.02; cam.zFar = 300
         cam.fieldOfView = 40
         cam.wantsHDR = true
         cam.wantsExposureAdaptation = false
@@ -356,18 +365,23 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
         model.onChalk = { [weak self] in if self?.humanTurn == true { self?.startChalking() } }
         model.onCycleCamera = { [weak self] in self?.cycleCamera() }
         model.onResume = { [weak self] in self?.resumeGame() }
+        Challenges.shared.onToast = { [weak self] t in self?.enqueueToast(t) }
         model.onNewGame = { [weak self] ai in
+            if self?.demo == true { self?.endDemo() }
+            self?.model.panelOpen = false
             self?.discardSuspended()
             Settings.shared.match = nil; self?.model.showFaces = false; self?.model.tournamentActive = false; self?.tourPos = nil
             self?.newGame(vsAI: ai)
         }
-        model.onStartMatch = { [weak self] r, i in self?.discardSuspended(); self?.startTournamentMatch(r, i) }
-        model.onSelectMode = { [weak self] m in if m != self?.gameMode { self?.discardSuspended() }; self?.gameMode = m; self?.model.mode = m; self?.previewMode() }
+        model.onStartMatch = { [weak self] r, i in if self?.demo == true { self?.endDemo() }; self?.model.panelOpen = false; self?.discardSuspended(); self?.startTournamentMatch(r, i) }
+        model.onSelectMode = { [weak self] m in
+            if let s = self, s.demo, s.clothMenuOn { if m != s.gameMode { s.gameMode = m; s.model.mode = m; s.demoSavedMode = m; s.startDemo() }; return }
+            if m != self?.gameMode { self?.discardSuspended() }; self?.gameMode = m; self?.model.mode = m; self?.previewMode() }
         model.onSetTarget = { [weak self] t in self?.model.target = t; GameConfig.target = t }
         model.onToggleCloth = { [weak self] in self?.toggleCloth() }
         model.onBackToMenu = { [weak self] in self?.backToMenu() }
         model.onSaveGame = { [weak self] i in self?.saveGame(slot: i) ?? false }
-        model.onLoadGame = { [weak self] i in self?.loadGame(slot: i) }
+        model.onLoadGame = { [weak self] i in if self?.demo == true { self?.endDemo() }; self?.model.panelOpen = false; self?.loadGame(slot: i) }
         model.onReposition = { [weak self] in self?.beginReposition() }
 
         physics.rack(seed: UInt64(Date().timeIntervalSince1970 * 1000), rules: rules)
@@ -396,6 +410,8 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
     // MARK: Nowa gra / menu
 
     func newGame(vsAI: Bool) {
+        stopConfetti()
+        if !demo { Challenges.shared.gameStart() }
         guard ready else { return }
         applyGeometry(for: gameMode)
         resetChalkRack()
@@ -438,12 +454,13 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
         demo = true; model.demo = true
         autoplay = false
         demoT = 0; demoOverT = 0; demoFocus = (nil, nil)
-        gameMode = [GameMode.eight, .nine, .eight, .ten].randomElement() ?? .eight
+        if !clothMenuOn { gameMode = [GameMode.eight, .nine, .eight, .ten].randomElement() ?? .eight }
         tv.log = env["BILARD_TVLOG"] != nil || env["BILARD_DEMO_SECS"] != nil
         tv.reset()
         audio.setQuiet(true)
         model.topView = false
         newGame(vsAI: true)
+        if clothMenuOn { model.topView = true }
         director.cancelCine(); director.skipIntro()
         if tv.log { print("DEMO start \(gameMode.rawValue)") }
     }
@@ -490,6 +507,7 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
 
     /// wyjście do menu KOŃCZY grę (zawieszenia nie ma; zapis robi się z pauzy)
     func backToMenu() {
+        stopConfetti()
         let playing = !demo && [Phase.aiming, .placing, .striking, .rolling].contains(phase)
         if playing || (model.phase != .gameOver && !demo) {
             suspendedPhase = nil; model.canResume = false
@@ -515,6 +533,7 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
         model.message = ""
         table.cue.isHidden = true
         setLinesVisible(false)
+        if clothMenuOn { demoPending = true }
     }
 
     func clearMatch() { Settings.shared.match = nil; model.showFaces = false; model.tournamentActive = false; tourPos = nil }
@@ -652,7 +671,7 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
         camPitch = 0.36; camDist = Phys.snooker ? 1.5 : 1.2
         if director.preset != .auto { director.preset = .auto; model.cameraName = director.preset.title }
         director.cancelCine()
-        if phase != .placing { model.topView = false }
+        if phase != .placing && !(demo && clothMenuOn) { model.topView = false }
         if !autoplay && !demo && isMatchBall() { director.startMatchBall() }
     }
 
@@ -956,6 +975,8 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
         audio.setListener(position: cameraNode.simdPosition, forward: f)
         if demoPending && phase == .menu { demoPending = false; startDemo() }
         if demo { updateDemo(dt) }
+        cmFrame()
+        updateConfetti(dt)
         if env["BILARD_RESUMETEST"] != nil { resumeTest(dt) }
         if env["BILARD_AUTOSTART"] != nil && phase == .menu && simTime > 0.5 && !demo && !model.canResume && resumeTestN == 0 {
             if let m = env["BILARD_MODE"], let gm = GameMode(rawValue: m) { gameMode = gm }
@@ -1052,7 +1073,7 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
         model.ballInHand = false
         placingBreak = false
         phase = .aiming
-        model.topView = false
+        if !(demo && clothMenuOn) { model.topView = false }
         let targets = rules.legalTargets(rules.current).filter { physics.balls[$0].active }
         if let t = targets.min(by: { simd_length(physics.balls[$0].p - q) < simd_length(physics.balls[$1].p - q) }) {
             let d = physics.balls[t].p - q
@@ -1303,6 +1324,7 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
             }
         }
         if rules.highBreak > prevHigh { breakBest[shooter] = max(breakBest[shooter], rules.highBreak) }
+        if !demo { Challenges.shared.shot(pots: report.pocketed.filter { $0 != 0 }.count, foul: out.foul, human: !rules.isAI(shooter)) }
         model.message = out.message
         syncModel()
         if autoplay {
@@ -1333,8 +1355,11 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
             model.winner = w
             if demo { phase = .gameOver; table.cue.isHidden = true; demoOverT = 0; return }
             saveRecords(winner: w)
+            Challenges.shared.gameEnd(humanWon: !rules.isAI(w), vsAI: model.vsAI, level: Settings.shared.aiLevel, mode: gameMode, tournament: tourPos != nil)
             finishTournamentMatch(winner: w)
             phase = .gameOver
+            audio.applause()
+            startConfetti()
             table.cue.isHidden = true
             if autoplay && env["BILARD_TOURNEY"] != nil {
                 print("KONIEC meczu: wygrywa \(rules.name(w))")
@@ -1744,7 +1769,7 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
         var up = simd_normalize(V3(0, 1, 0) * (1 - s) + V3(0, 0, -1) * s)
         let fovAim = 40 + 10 * (1 - follow)
         var fovV = (fovAim + (fovTop - fovAim) * s + 7 * sin(.pi * s) - 3.5 * punch * (1 - s))
-        if demo {
+        if demo && !clothMenuOn {
             // tryb demo: kamera TV zastępuje całą logikę kamery gry
             let st: TVStage
             switch phase {
@@ -1795,6 +1820,7 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
         let focus = max(0.2, simd_length(look - pos))
         let lift = 0.0014 + 0.012 * s          // z góry nakładki unoszone wraz z kamerą (anty z-fighting)
         table.decals.forEach { $0.position.y = CGFloat(lift) }
+        cmUI.node.position.y = CGFloat(lift + 0.0004)
         cam.zNear = CGFloat(0.02 + 1.2 * s)          // z góry większe zNear = precyzja głębi, koniec z-fightingu nakładek na suknie
         let nI = clothNormalBase * max(0, min(1, (2.0 - focus) / 1.2))   // detal normalny sukna zanika z odległością (moiré)
         table.clothMaterials.forEach { $0.normal.intensity = CGFloat(nI) }
@@ -1845,7 +1871,7 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
     var humanTurn: Bool { phase == .aiming && aiStage < 0 && !rules.isAI(rules.current) && !fx.busy }
 
     func mouseDown(_ e: NSEvent) {
-        if demo { endDemo(); return }
+        if demo { if clothMenuOn { cmClick(e) } else { endDemo() }; return }
         if replaying { endReplay(); return }
         if director.introActive { director.skipIntro(); return }
         if director.preset == .orbit, phase != .menu { if let m = tablePoint(e) { director.orbitPick(m, balls: physics.balls) }; return }
@@ -1883,6 +1909,7 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
         if simd_length(d) > 0.01 { aimYaw = atan2(d.y, d.x) }
     }
     func mouseMoved(_ e: NSEvent) {
+        if demo { cmMove(e) }
         if phase == .placing { hoverPoint = tablePoint(e) ?? hoverPoint }
     }
     func mouseDragged(_ e: NSEvent) {
@@ -1908,7 +1935,7 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
 
     var rightStartY = 0.0
     func rightDown(_ e: NSEvent) {
-        if demo { endDemo(); return }
+        if demo { if !clothMenuOn { endDemo() }; return }
         guard humanTurn else { return }
         rightStartY = Double(e.locationInWindow.y)
         rightPull = 0.04
@@ -1942,7 +1969,7 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
         camDist = max(0.45, min(2.4, camDist * (1 - Double(e.magnification)))) }
 
     func keyDown(_ e: NSEvent) -> Bool {
-        if demo { if !e.isARepeat { endDemo() }; return true }
+        if demo { if clothMenuOn { return cmKey(e) }; if !e.isARepeat { endDemo() }; return true }
         if model.pauseCine { model.pauseCine = false; return true }
         guard let ch = e.charactersIgnoringModifiers?.lowercased() else { return false }
         if e.modifierFlags.contains(.option), let n = Int(ch), (1...6).contains(n) { debugToggle(n - 1); return true }

@@ -19,6 +19,9 @@ extension View {
 
 enum UI {
     static let accent = Color(red: 0.95, green: 0.73, blue: 0.32)      // stonowany bursztyn
+    /// menu w stylu nadruku na suknie: biały zamiast bursztynu
+    static var menuOn: Bool { Settings.shared.clothMenu }
+    static var menuAccent: Color { menuOn ? .white : accent }
     static let foul   = Color(red: 0.92, green: 0.34, blue: 0.31)
     static let good   = Color(red: 0.38, green: 0.80, blue: 0.58)
     static let info   = Color(red: 0.45, green: 0.68, blue: 0.95)
@@ -36,10 +39,11 @@ enum UI {
 struct Panel: ViewModifier {
     var radius: CGFloat = 14
     var tint: Double = 0.30
+    var glass: Double = 1
     func body(content: Content) -> some View {
         content
             .background(
-                RoundedRectangle(cornerRadius: radius, style: .continuous).fill(.ultraThinMaterial)
+                RoundedRectangle(cornerRadius: radius, style: .continuous).fill(.ultraThinMaterial).opacity(glass)
                     .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).fill(Color.black.opacity(tint)))
             )
             .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(
@@ -49,7 +53,7 @@ struct Panel: ViewModifier {
 }
 
 extension View {
-    func panel(_ radius: CGFloat = 14, tint: Double = 0.30) -> some View { modifier(Panel(radius: radius, tint: tint)) }
+    func panel(_ radius: CGFloat = 14, tint: Double = 0.30, glass: Double = 1) -> some View { modifier(Panel(radius: radius, tint: tint, glass: glass)) }
     @ViewBuilder func panelIf(_ on: Bool, _ radius: CGFloat = 14, tint: Double = 0.30) -> some View { if on { modifier(Panel(radius: radius, tint: tint)) } else { self.shadow(color: .black.opacity(0.55), radius: 5) } }
 }
 
@@ -561,12 +565,13 @@ struct MenuButton: View {
                 Image(systemName: "chevron.right").font(.system(size: 11, weight: .bold)).opacity(hover ? 0.8 : 0.35)
                     .offset(x: hover ? 2 : 0)
             }
-            .foregroundColor(primary ? UI.ink : UI.text)
+            .foregroundColor(primary && !UI.menuOn ? UI.ink : UI.text)
             .padding(.horizontal, 16).frame(width: 300, height: subtitle == nil ? 44 : 52)
             .background(RoundedRectangle(cornerRadius: 11, style: .continuous)
-                .fill(primary ? AnyShapeStyle(LinearGradient(colors: [UI.accent, UI.accent.opacity(0.82)], startPoint: .top, endPoint: .bottom))
+                .fill(primary && UI.menuOn ? AnyShapeStyle(Color.white.opacity(hover ? 0.24 : 0.16))
+                      : primary ? AnyShapeStyle(LinearGradient(colors: [UI.accent, UI.accent.opacity(0.82)], startPoint: .top, endPoint: .bottom))
                               : AnyShapeStyle(Color.white.opacity(hover ? 0.12 : 0.06))))
-            .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(Color.white.opacity(primary ? 0.35 : 0.12), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(Color.white.opacity(UI.menuOn ? (primary ? 0.9 : 0.3) : (primary ? 0.35 : 0.12)), lineWidth: UI.menuOn && primary ? 1.5 : 1))
             .contentShape(Rectangle())
         }
         .buttonStyle(PressStyle())
@@ -771,7 +776,7 @@ struct HUDView: View {
 
             if let l = m.replayLabel { ReplayOverlay(label: l).transition(.opacity) }
             if m.paused && playing && !m.demo { pauseOverlay.transition(.opacity) }
-            if m.demo { DemoOverlay().transition(.opacity) }
+            if m.demo && !m.clothMenu { DemoOverlay().transition(.opacity) }
             if !m.fpsText.isEmpty {
                 HStack(spacing: 4) {
                     Text(m.fpsText).font(.system(size: 13, weight: .semibold, design: .monospaced)).foregroundColor(UI.text)
@@ -783,8 +788,13 @@ struct HUDView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 .allowsHitTesting(false)
             }
-            if m.phase == .menu && !m.demo { menuOverlay.transition(.opacity) }
+            if (m.phase == .menu && !m.demo && !m.clothMenu) || (m.clothMenu && m.demo && m.panelOpen) { menuOverlay.transition(.opacity) }
             if m.phase == .gameOver && !m.demo { gameOverOverlay.transition(.opacity.combined(with: .scale(scale: 0.97))) }
+            if let t = m.toast {
+                AchievementToast(t: t).id(t.id)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top).padding(.top, 110)
+                    .transition(.move(edge: .top).combined(with: .opacity)).allowsHitTesting(false)
+            }
             if m.loading < 1 { loadingView.transition(.opacity) }
         }
         .environment(\.colorScheme, .dark)
@@ -888,10 +898,10 @@ struct HUDView: View {
         }
     }
 
-    func backdrop(_ o: Double) -> some View {
+    func backdrop(_ o: Double, vignette: Double = 0.55) -> some View {
         ZStack {
             Color.black.opacity(o)
-            RadialGradient(colors: [.clear, .black.opacity(0.55)], center: .center, startRadius: 200, endRadius: 900)
+            RadialGradient(colors: [.clear, .black.opacity(vignette)], center: .center, startRadius: 200, endRadius: 900)
         }
         .ignoresSafeArea()
     }
@@ -928,7 +938,7 @@ struct HUDView: View {
 
     var pausePanel: some View {
         ZStack {
-            backdrop(0.45)
+            backdrop(0.10, vignette: 0.32)
             VStack(spacing: 0) {
                 Image(systemName: "pause.circle").font(.system(size: 30, weight: .light)).foregroundColor(UI.dim)
                 Text("PAUZA").font(.system(size: 28, weight: .heavy)).tracking(8).foregroundColor(UI.text).padding(.top, 8)
@@ -952,7 +962,7 @@ struct HUDView: View {
                 ClothPicker(m: m)
             }
             .padding(.horizontal, 40).padding(.vertical, 32)
-            .panel(24, tint: 0.5)
+            .panel(24, tint: 0.05, glass: 0.3)
         }
         .interactive()
     }
@@ -964,7 +974,7 @@ struct HUDView: View {
 
     var gameOverOverlay: some View {
         ZStack {
-            backdrop(0.5).allowsHitTesting(false)
+            backdrop(0.12, vignette: 0.32).allowsHitTesting(false)
             VStack(spacing: 0) {
                 ZStack {
                     Circle().fill(UI.accent.opacity(0.14)).frame(width: 74, height: 74)
@@ -1000,7 +1010,7 @@ struct HUDView: View {
                 ClothPicker(m: m).padding(.top, 16)
             }
             .padding(.horizontal, 40).padding(.vertical, 32)
-            .panel(24, tint: 0.5)
+            .panel(24, tint: 0.05, glass: 0.3)
             .interactive()
         }
     }

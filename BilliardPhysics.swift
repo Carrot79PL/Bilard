@@ -50,7 +50,7 @@ enum Phys {
             cornerR = 0.082; cornerOff = 0.035; sideR = 0.075; sideOff = 0.040
             if modelTable {   // otwory łuz modelu na poziomie sukna; środek narożnej leży 7,5 mm w głąb pola
                 tipGap = 0.0916; sideTip = 0.0706; jawR = 0.008
-                cornerR = 0.060; cornerOff = -0.0075; sideR = 0.064; sideOff = 0.0127
+                cornerR = 0.054; cornerOff = 0.003; sideR = 0.058; sideOff = 0.022
             }
         }
         BilliardPhysics.rebuildGeometry()
@@ -268,7 +268,7 @@ final class BilliardPhysics {
             var b = balls[i]
             // łuzy
             var potted = false
-            for (k, pk) in Self.pockets.enumerated() where b.h < 0.012 && simd_length(b.p - pk.c) < pk.r {
+            for (k, pk) in Self.pockets.enumerated() where b.h < 0.012 && simd_length(b.p - pk.c) < pk.r + 0.006 {      // +6 mm: bez szczeliny między otworem a kolankami
                 balls[i].active = false
                 balls[i].v = V2(0, 0)
                 events.append(.pocket(ball: i, index: k, pos: b.p))
@@ -289,6 +289,15 @@ final class BilliardPhysics {
                         events.append(.cushion(ball: i, speed: -vn, pos: b.p))
                     }
                 }
+            }
+            // bila, która minęła linię bandy we wlocie łuzy poza obszarem wychwytu, wpada do najbliższej łuzy (nie wylatuje za stół)
+            if b.h < 0.012 && (abs(b.p.x) > Phys.halfL + 0.006 || abs(b.p.y) > Phys.halfW + 0.006) {
+                var best = 0, bd = Double.infinity
+                for (k, pk) in Self.pockets.enumerated() { let d = simd_length(b.p - pk.c); if d < bd { bd = d; best = k } }
+                balls[i].active = false
+                balls[i].v = V2(0, 0)
+                events.append(.pocket(ball: i, index: best, pos: b.p))
+                continue
             }
             // bandy długie (z = ±halfW) i krótkie (x = ±halfL)
             let ax = abs(b.p.x), az = abs(b.p.y)
