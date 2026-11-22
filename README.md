@@ -5,7 +5,7 @@
 Natywna gra bilardowa 3D na macOS: **ósemka, dziewiątka, dziesiątka, 14/1 i snooker**, z własną fizyką bil, przeciwnikiem komputerowym na trzech poziomach, trybem turniejowym i fotorealistyczną grafiką. Napisana w Swift, SceneKit (Metal) i SwiftUI, bez silnika gier.
 🇬🇧 *A native 3D pool game for macOS: 8-ball, 9-ball, 10-ball, straight pool (14.1) and snooker, with custom ball physics, three AI levels, a tournament mode and photoreal graphics. Pure Swift, SceneKit (Metal) and SwiftUI — no game engine.*
 
-**Wersja:** 1.1  ·  **Autor:** Tomasz Marchewka
+**Wersja:** 1.2  ·  **Autor:** Tomasz Marchewka
 
 ![Bilard — celowanie w ósemkę](docs/screenshot.jpg)
 
@@ -20,6 +20,14 @@ Natywna gra bilardowa 3D na macOS: **ósemka, dziewiątka, dziesiątka, 14/1 i s
 | ![Wygląd](docs/look.jpg) | ![Wyzwania](docs/challenges.jpg) |
 
 ![Menu klasyczne](docs/menu.jpg)
+
+## Nowości w wersji 1.2
+
+- **Tło HDRI:** wybór panoramy w Grafika (sala bilardowa, sala gier, sala balowa, restauracja, studio, lounge — Poly Haven, CC0) lub własny plik `.hdr` / `.exr`. Panorama zmienia światło, odbicia w bilach i opcjonalnie tło (ciemne jak dawniej, rozmyte lub ostre, z suwakami jasności i rozmycia).
+- **Poprawka migotania sukna:** przywrócona precyzja bufora głębi (płaszczyzny kamery).
+- **Poprawka:** bile przy wlocie łuzy nie wylatują już poza stół.
+
+![Tło HDRI](docs/hdri.jpg)
 
 ## Nowości w wersji 1.1
 
@@ -97,12 +105,12 @@ Aby użyć Xcode: utwórz projekt macOS App, dodaj wszystkie pliki `.swift` (pli
 | `CameraDirector.swift`, `TVCamera.swift`, `ReplayRecorder.swift`, `ShotEvaluator.swift` | kamery, powtórki, ocena zagrań |
 | `HUDView.swift`, `MenuViews.swift`, `Settings.swift`, `Personalize.swift`, `Tournament*.swift`, `SaveGame.swift` | interfejs, ustawienia, personalizacja, turniej, zapis |
 | `AudioEngine.swift`, `MusicEngine.swift` | dźwięk 3D, muzyka i brawa |
-| `ClothMenu.swift`, `Emblems.swift`, `Confetti.swift`, `Challenges.swift`, `HDRSupport.swift` | menu na suknie, emblematy, konfetti, wyzwania i trofea, HDR |
+| `ClothMenu.swift`, `Emblems.swift`, `Confetti.swift`, `Challenges.swift`, `HDRSupport.swift`, `HDRIBackground.swift` | menu na suknie, emblematy, konfetti, wyzwania i trofea, HDR |
 | `Resources/Shaders.metal` | shadery (modyfikatory SceneKit) |
 
 ## Podziękowania i licencje zasobów
 
-- Tekstury **orzech (American walnut veneer)**, **brązowa skóra** i HDRI **billiard hall** — [Poly Haven](https://polyhaven.com) (CC0).
+- Tekstury **orzech (American walnut veneer)**, **brązowa skóra** oraz panoramy HDRI **billiard hall**, **abandoned games room 01**, **ballroom**, **bush restaurant**, **brown photostudio 02** i **anniversary lounge** — [Poly Haven](https://polyhaven.com) (CC0).
 - Tekstura **sukna snookerowego** (Fabrics 0075) — [TextureCan](https://www.texturecan.com).
 - Model 3D stołu bilardowego (`Assets/table_model`) — zasób firm trzecich dostarczony przez autora gry; informacja o źródle i licencji zostanie uzupełniona.
 - Kod gry © Tomasz Marchewka. Wszystkie prawa zastrzeżone, o ile nie zaznaczono inaczej.

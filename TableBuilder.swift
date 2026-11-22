@@ -1003,21 +1003,30 @@ enum TableBuilder {
     // MARK: Mapa otoczenia (IBL)
     static var envIntensity: CGFloat { CGFloat(Double(ProcessInfo.processInfo.environment["BILARD_ENV"] ?? "") ?? 0.35) }
     static var bgIntensity: CGFloat { CGFloat(Double(ProcessInfo.processInfo.environment["BILARD_BG"] ?? "") ?? 0.45) }
-    static func configureEnvironment(_ scene: SCNScene) {
+    static var envKey = ""
+    static func configureEnvironment(_ scene: SCNScene, force: Bool = false) {
+        let st = Settings.shared
+        let key = "\(st.hdriId)|\(st.hdriBg)|\(st.hdriBlur)|\(st.hdriBright)"
+        if !force && key == envKey { return }
+        envKey = key
         // mgła w kolorze tła: podłoga rozpuszcza się płynnie w horyzoncie zamiast ostrej krawędzi
         scene.fogColor = nsc(0x15110E)
         scene.fogStartDistance = 5
         scene.fogEndDistance = 20
         scene.fogDensityExponent = 1.0
         if let u = Scans.hdriURL {
-            // prawdziwa sala bilardowa (Poly Haven, CC0): światło otoczenia, odbicia w bilach i tło
+            // panorama HDRI (Poly Haven, CC0 lub własna): światło otoczenia, odbicia w bilach i opcjonalnie tło
             scene.lightingEnvironment.contents = u
-            scene.lightingEnvironment.intensity = envIntensity
+            scene.lightingEnvironment.intensity = envIntensity * CGFloat(HDRIDef.envMul(id: st.hdriId, url: u))
             if ProcessInfo.processInfo.environment["BILARD_HDRBG"] != nil {
                 scene.background.contents = u
                 scene.background.intensity = bgIntensity
+            } else if st.hdriBg > 0, let (img, fog) = HDRIBackground.make(url: u, blur: st.hdriBg == 1 ? st.hdriBlur : 0, brightness: st.hdriBright) {
+                scene.background.contents = img
+                scene.background.intensity = 1
+                scene.fogColor = fog
             } else {
-                // HDRI tylko jako światło i odbicia; tło = ciemna sala w tonacji podłogi, zanikająca w ciemność
+                // tryb ciemny: tło = ciemna sala w tonacji podłogi, zanikająca w ciemność
                 scene.background.contents = makeImage(256, 1024) { ctx in
                     ctx.drawLinearGradient(gradient([rgb(0x15110E), rgb(0x15110E), rgb(0x15110E), rgb(0x15110E)], [0, 0.4, 0.6, 1]),
                                            start: CGPoint(x: 0, y: 0), end: CGPoint(x: 0, y: 1024), options: [])
@@ -1042,9 +1051,12 @@ enum TableBuilder {
 enum Scans {
     static let dir: URL? = Bundle.main.resourceURL?.appendingPathComponent("Assets")
     static var hdriURL: URL? {
-        guard let u = dir?.appendingPathComponent("billiard_hall/billiard_hall_2k.hdr"),
-              FileManager.default.fileExists(atPath: u.path) else { return nil }
-        return u
+        let st = Settings.shared
+        if st.hdriId == "custom", let c = HDRIDef.customURL { return c }
+        for id in [st.hdriId, "billiard_hall"] {
+            if let u = dir?.appendingPathComponent("\(id)/\(id)_2k.hdr"), FileManager.default.fileExists(atPath: u.path) { return u }
+        }
+        return nil
     }
     static func img(_ rel: String) -> CGImage? {
         guard let u = dir?.appendingPathComponent(rel),

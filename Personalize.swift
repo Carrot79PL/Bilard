@@ -8,6 +8,7 @@ extension GameSceneController {
         let st = Settings.shared
         TableBuilder.styleCue(table.cue, st.cue)
         styleTable(table)
+        TableBuilder.configureEnvironment(scene)
         let cmNow = clothMenuOn
         if let was = cmUI.prevOn, was != cmNow {          // przełączenie w ustawieniach: demo startuje, panel zostaje otwarty
             if cmNow { if phase == .menu && !demo { demoPending = true }; model.menuTab = 5; model.panelOpen = true } else { model.panelOpen = false }

@@ -97,7 +97,7 @@ struct MenuRoot: View {
                     default: aboutTab
                     }
                 }
-                .frame(width: tab == 1 || tab == 4 ? 820 : 560, height: tab == 1 ? 600 : (tab == 4 ? 440 : 430), alignment: .top)
+                .frame(width: tab == 1 || tab == 4 ? 820 : (tab == 5 ? 680 : 560), height: tab == 1 ? 600 : (tab == 4 ? 440 : (tab == 5 ? 520 : 430)), alignment: .top)
             }
             .padding(.horizontal, 36).padding(.vertical, 26)
             .fixedSize()
@@ -321,6 +321,20 @@ struct MenuRoot: View {
             Row(label: "Menu główne") {
                 Chip(title: "Na suknie (demo)", selected: s.clothMenu) { s.clothMenu = true }
                 Chip(title: "Klasyczne", selected: !s.clothMenu) { s.clothMenu = false }
+            }
+            Row(label: "Otoczenie (HDRI)") {
+                WrapChips(items: HDRIDef.all.map { ($0.id, $0.name) } + (HDRIDef.hasCustom ? [("custom", "Własne")] : []) + [("+", HDRIDef.hasCustom ? "Zmień własne…" : "Dodaj własne…")], sel: s.hdriId) { id in
+                    if id == "+" { HDRIDef.pickCustom { ok in if ok { s.hdriId = "custom"; TableBuilder.envKey = ""; s.hdriBg = s.hdriBg } } } else { s.hdriId = id }
+                }
+            }
+            Row(label: "Tło") {
+                Chip(title: "Ciemne", selected: s.hdriBg == 0) { s.hdriBg = 0 }
+                Chip(title: "Rozmyte", selected: s.hdriBg == 1) { s.hdriBg = 1 }
+                Chip(title: "Ostre", selected: s.hdriBg == 2) { s.hdriBg = 2 }
+            }
+            if s.hdriBg > 0 {
+                Row(label: "Jasność tła") { Slider(value: $s.hdriBright, in: 0.1...1.5).frame(width: 240).tint(UI.menuAccent) }
+                if s.hdriBg == 1 { Row(label: "Rozmycie tła") { Slider(value: $s.hdriBlur, in: 0...1).frame(width: 240).tint(UI.menuAccent) } }
             }
             Row(label: "Preset") {
                 ForEach(GfxPreset.allCases.dropLast(), id: \.rawValue) { p in

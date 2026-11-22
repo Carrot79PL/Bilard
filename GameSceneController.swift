@@ -296,7 +296,7 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
 
         // kamera: HDR, tone mapping, bloom
         let cam = SCNCamera()
-        cam.zNear = 0.02; cam.zFar = 300
+        cam.zNear = 0.04; cam.zFar = Double(env["BILARD_ZFAR"] ?? "") ?? 80
         cam.fieldOfView = 40
         cam.wantsHDR = true
         cam.wantsExposureAdaptation = false
@@ -1821,7 +1821,7 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
         let lift = 0.0014 + 0.012 * s          // z góry nakładki unoszone wraz z kamerą (anty z-fighting)
         table.decals.forEach { $0.position.y = CGFloat(lift) }
         cmUI.node.position.y = CGFloat(lift + 0.0004)
-        cam.zNear = CGFloat(0.02 + 1.2 * s)          // z góry większe zNear = precyzja głębi, koniec z-fightingu nakładek na suknie
+        cam.zNear = CGFloat(0.04 + 1.2 * s)          // z góry większe zNear = precyzja głębi, koniec z-fightingu nakładek na suknie
         let nI = clothNormalBase * max(0, min(1, (2.0 - focus) / 1.2))   // detal normalny sukna zanika z odległością (moiré)
         table.clothMaterials.forEach { $0.normal.intensity = CGFloat(nI) }
         cam.focusDistance = CGFloat(focus)
