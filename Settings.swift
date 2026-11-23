@@ -181,6 +181,7 @@ final class Settings: ObservableObject {
     @Published var hdriId: String { didSet { d.set(hdriId, forKey: "hdriId"); look() } }
     @Published var hdriBg: Int { didSet { d.set(hdriBg, forKey: "hdriBg"); look() } }                 // 0 ciemne (jak dawniej), 1 rozmyte, 2 ostre
     @Published var hdriBlur: Double { didSet { d.set(hdriBlur, forKey: "hdriBlur"); look() } }
+    @Published var props: Bool { didSet { d.set(props, forKey: "props") } }   // dodatki na brzegu stołu
     @Published var adaptiveRes: Bool { didSet { d.set(adaptiveRes, forKey: "adaptiveRes") } }   // dynamiczna rozdzielczość: obniża skalę 3D, gdy klatki spadają
     @Published var foulKitchen: Bool { didSet { d.set(foulKitchen, forKey: "foulKitchen") } }   // zasada domowa: biała po faulu za linią głowy
     @Published var hdriBright: Double { didSet { d.set(hdriBright, forKey: "hdriBright"); look() } }
@@ -220,7 +221,7 @@ final class Settings: ObservableObject {
         cueId = s("cueId", "maple"); clothId = s("clothId", "blue"); clothMenu = ProcessInfo.processInfo.environment["BILARD_CLOTHMENU"] != nil || ((UserDefaults.standard.object(forKey: "clothMenu") as? Bool) ?? false); emblemId = ProcessInfo.processInfo.environment["BILARD_EMBLEM"] ?? s("emblemId", "blueroot"); ballSetId = ProcessInfo.processInfo.environment["BILARD_BALLSET"] ?? s("ballSetId", "classic")
         preset = i("gfxPreset", GfxPreset.high.rawValue)
         texRes = i("gfxTex", 2); reflections = i("gfxRefl", 1); shadows = i("gfxShadow", 2)
-        hdriId = ProcessInfo.processInfo.environment["BILARD_HDRI"] ?? s("hdriId", "billiard_hall"); hdriBg = Int(ProcessInfo.processInfo.environment["BILARD_HDRIBG"] ?? "") ?? i("hdriBg", 0); foulKitchen = d.bool(forKey: "foulKitchen"); adaptiveRes = (d.object(forKey: "adaptiveRes") as? Bool) ?? true; hdriBlur = (d.object(forKey: "hdriBlur") as? Double) ?? 0.5; hdriBright = (d.object(forKey: "hdriBright") as? Double) ?? 0.6
+        hdriId = ProcessInfo.processInfo.environment["BILARD_HDRI"] ?? s("hdriId", "billiard_hall"); hdriBg = Int(ProcessInfo.processInfo.environment["BILARD_HDRIBG"] ?? "") ?? i("hdriBg", 0); foulKitchen = d.bool(forKey: "foulKitchen"); adaptiveRes = (d.object(forKey: "adaptiveRes") as? Bool) ?? true; props = (d.object(forKey: "props") as? Bool) ?? true; hdriBlur = (d.object(forKey: "hdriBlur") as? Double) ?? 0.5; hdriBright = (d.object(forKey: "hdriBright") as? Double) ?? 0.6
         hdr = ProcessInfo.processInfo.environment["BILARD_HDR"] != nil || b("gfxHDR", false); bloom = b("gfxBloom", true); dof = b("gfxDof", false); dust = b("gfxDust", true); ssao = b("gfxSSAO", false); fps = i("gfxFps", 60); showFps = b("gfxShowFps", false); dockBg = b("hudDockBg", true); aimUsesPower = b("aimUsesPower", false)
         renderScale = Double(ProcessInfo.processInfo.environment["BILARD_SCALE"] ?? "") ?? f("gfxScale", 1.0)
         musicVol = f("audMusic", 0.5); sfxVol = f("audSfx", 0.9); ambVol = f("audAmb", 0.35)

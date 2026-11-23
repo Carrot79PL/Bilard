@@ -134,6 +134,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 if let n = ProcessInfo.processInfo.environment["BILARD_SELFTEST"], let games = Int(n) { SelfTest.run(games: games); exit(0) }   // test bezokienkowy
+if let ps = ProcessInfo.processInfo.environment["BILARD_PROPSHOT"] { PropShot.run(path: ps); exit(0) }
 let app = NSApplication.shared
 app.setActivationPolicy(.regular)
 let delegate = AppDelegate()

@@ -375,6 +375,10 @@ struct MenuRoot: View {
                     Text("\(Int((s.renderScale * 100).rounded()))%").font(UI.number(11)).foregroundColor(UI.dim).frame(width: 38, alignment: .trailing)
                 }
             }
+            Row(label: "Dodatki na stole") {
+                Chip(title: "Włączone", selected: s.props, width: 90) { s.props = true }
+                Chip(title: "Wyłączone", selected: !s.props, width: 90) { s.props = false }
+            }
             Row(label: "Dynamiczna rozdzielczość") {
                 Chip(title: "Włączona", selected: s.adaptiveRes, width: 90) { s.adaptiveRes = true }
                 Chip(title: "Wyłączona", selected: !s.adaptiveRes, width: 90) { s.adaptiveRes = false }
@@ -422,28 +426,12 @@ struct MenuRoot: View {
     // MARK: O autorze
     var aboutTab: some View {
         let v = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
-        return ScrollView {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 14) {
-                    if let u = Bundle.main.url(forResource: "author", withExtension: "jpg"), let img = NSImage(contentsOf: u) {
-                        Image(nsImage: img).resizable().scaledToFill().frame(width: 72, height: 72).clipShape(Circle())
-                            .overlay(Circle().stroke(UI.menuAccent.opacity(0.7), lineWidth: 1.5))
-                    }
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Bilard · wersja \(v)").font(.system(size: 17, weight: .bold)).foregroundColor(UI.text)
-                        Text("Autor: Tomasz Marchewka · studio BLUEROOT").font(.system(size: 13)).foregroundColor(UI.menuAccent)
-                    }
-                }
-                Text("Natywna gra na macOS napisana w Swift z SceneKit/Metal: własna fizyka bil, tryby 8/9/10-Ball, 14/1 i snooker, komputerowy przeciwnik i muzyka syntezowana na żywo. Dziękuję za granie!")
-                    .font(.system(size: 12)).foregroundColor(UI.dim).fixedSize(horizontal: false, vertical: true)
-                Rectangle().fill(UI.line).frame(height: 1)
-                Caps("Licencje użytych skanów (CC0 / domena publiczna)", size: 9)
-                lic("Poly Haven", "Orzech amerykański (american_walnut_veneer), skóra (brown_leather), HDRI sali bilardowej (billiard_hall) – CC0, polyhaven.com")
-                lic("TextureCan", "Sukno bilardowe „Fabrics 0075” (kolor, chropowatość, AO) – CC0, texturecan.com")
-                Text("Pozostałe tekstury, dźwięki i muzyka są generowane proceduralnie przez aplikację.")
-                    .font(.system(size: 11)).foregroundColor(UI.faint)
-            }.frame(width: 540, alignment: .leading)
-        }
+        return VStack(spacing: 16) {
+            if let logo = HUDView.studioLogo {
+                Image(nsImage: logo).resizable().aspectRatio(contentMode: .fit).frame(width: 300)
+            }
+            Text("Wersja \(v)").font(.system(size: 15, weight: .semibold)).foregroundColor(UI.menuAccent)
+        }.frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     func lic(_ n: String, _ t: String) -> some View {

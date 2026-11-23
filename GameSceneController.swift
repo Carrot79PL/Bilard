@@ -867,12 +867,17 @@ final class GameSceneController: NSObject, SCNSceneRendererDelegate {
         if let shot = env["BILARD_SHOT"], simTime > (Double(env["BILARD_SHOT_AT"] ?? "") ?? 4.0), !shotTaken {
             shotTaken = true
             // test: zbliżenie łuzy (BILARD_LOOK=pocket – narożna, side – boczna)
+            if env["BILARD_LOOK"] == "long" {     // test: długi bok stołu z boku (podpis na płycie boku)
+                let r = table.root
+                cameraNode.worldPosition = r.convertPosition(SCNVector3(0.0, -0.10, Phys.halfW + 1.5), to: nil)
+                cameraNode.look(at: r.convertPosition(SCNVector3(0, -0.12, Phys.halfW), to: nil))
+            }
             if env["BILARD_LOOK"] == "end" {      // test: krótki bok stołu, nisko z ukosa (krawędzie sukna, spód ramy)
                 let r = table.root
                 cameraNode.worldPosition = r.convertPosition(SCNVector3(Phys.halfL + 1.6, -0.22, Phys.halfW + 0.9), to: nil)
                 cameraNode.look(at: r.convertPosition(SCNVector3(Phys.halfL, -0.05, 0.1), to: nil))
             }
-            if let lk = env["BILARD_LOOK"], let p = BilliardPhysics.pockets.first(where: { $0.side == (lk == "side") && $0.c.x >= 0 && $0.c.y > 0 }) {
+            if let lk = env["BILARD_LOOK"], lk != "long", lk != "end", let p = BilliardPhysics.pockets.first(where: { $0.side == (lk == "side") && $0.c.x >= 0 && $0.c.y > 0 }) {
                 let r = table.root, c = SCNVector3(p.c.x, -0.01, p.c.y)
                 let eye = lk == "side" ? SCNVector3(c.x + 0.12, 0.20, c.z - 0.34) : SCNVector3(c.x - 0.30, 0.22, c.z - 0.22)
                 cameraNode.position = r.convertPosition(eye, to: nil)

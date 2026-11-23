@@ -717,6 +717,7 @@ struct HUDView: View {
     @State private var showKeys = true
 
     var playing: Bool { m.phase != .menu && m.phase != .gameOver }
+    static let studioLogo: NSImage? = Bundle.main.url(forResource: "podpis_logo", withExtension: "png").flatMap { NSImage(contentsOf: $0) }
 
     var body: some View {
         ZStack {
@@ -772,6 +773,16 @@ struct HUDView: View {
                     .onAppear { hideKeysLater() }
                     .padding(18)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+
+                // prawy dolny: mały podpis studia
+                if let logo = Self.studioLogo {
+                    Image(nsImage: logo).resizable().aspectRatio(contentMode: .fit)
+                        .frame(width: 150)
+                        .opacity(0.6)
+                        .padding(.trailing, 20).padding(.bottom, 16)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                        .allowsHitTesting(false)
+                }
             }
 
             if let l = m.replayLabel { ReplayOverlay(label: l).transition(.opacity) }

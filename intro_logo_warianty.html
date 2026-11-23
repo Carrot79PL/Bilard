@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bilard – warianty animacji logo na starcie</title>
+<style>
+  :root{--bg:#0c0d10;--card:#14161b;--tx:#eef1f6;--dim:#8a93a3;--line:#262a33}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--tx);font-family:-apple-system,system-ui,sans-serif;padding:24px 16px}
+  h1{font-size:18px;font-weight:600;margin:0 0 4px}
+  p.sub{margin:0 0 20px;color:var(--dim);font-size:13px}
+  .grid,.wrap{max-width:760px;margin:0 auto}.wrap{margin-bottom:14px}.grid{display:grid;gap:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .card header{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px}
+  .card h2{font-size:14px;margin:0;font-weight:600}
+  .card small{color:var(--dim);font-size:12px;display:block;margin-top:2px}
+  button{background:#222733;color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;white-space:nowrap}
+  canvas{display:block;width:100%;height:auto;background:#0f1115}
+</style></head><body>
+<div class="wrap"><h1>Animacja logo po uruchomieniu – trzy warianty</h1>
+<p class="sub">Dotychczasowa animacja to marchewka BLUEROOT z napisem STUDIO. Tu znak studia zostaje rozpoznawalny (trzy niebieskie pasy i zielone liście), ale jest połączony z bilardem. Każdy wariant zapętla się co 6 s.</p></div>
+<div class="grid">
+ <div class="card"><header><div><h2>1 · Marchewka w ósemce</h2><small>Czarna bila toczy się i staje, w jej białym polu rysuje się znak studia.</small></div><button onclick="rp(0)">Od nowa</button></header><canvas id="c0" width="960" height="540"></canvas></div>
+ <div class="card"><header><div><h2>2 · Marchewka jako kij</h2><small>Marchewka uderza białą bilę jak kijem, po czym obraca się i staje jako logo.</small></div><button onclick="rp(1)">Od nowa</button></header><canvas id="c1" width="960" height="540"></canvas></div>
+ <div class="card"><header><div><h2>3 · Marchewka z bil</h2><small>Sześć bil układa się w trójkąt (jak ustawienie bil), który jest marchewką; trzy rzędy w trzech odcieniach niebieskiego.</small></div><button onclick="rp(2)">Od nowa</button></header><canvas id="c2" width="960" height="540"></canvas></div>
+</div>
+<script>
+const W=960,H=540,DUR=6.2;
+const cl=(v,a=0,b=1)=>Math.max(a,Math.min(b,v)), sm=t=>{t=cl(t);return t*t*(3-2*t)}, eo=t=>1-Math.pow(1-cl(t),3), ei=t=>Math.pow(cl(t),2.2);
+const B1='#5aa6ff',B2='#2f7bf5',B3='#1f58d6',GR='#34c26b';
+function bgc(c){c.fillStyle='#0f1115';c.fillRect(0,0,W,H);const g=c.createRadialGradient(W/2,H*.42,20,W/2,H*.42,420);g.addColorStop(0,'rgba(40,90,170,.22)');g.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=g;c.fillRect(0,0,W,H)}
+// marchewka w jednostkach: góra y=0, wysokość 127, szerokość 72; (x,y) = punkt środka górnej krawędzi; k = skala; prog 0..1 = rysowanie pasów; leaf 0..1
+function carrot(c,x,y,k,bandsT=1,leafT=1,alpha=1){
+  c.save();c.globalAlpha=alpha;c.translate(x,y);c.scale(k,k);
+  const bands=[[B1,0,36,38,24],[B2,44,24,77,13],[B3,82,13,127,0]];
+  bands.forEach((b,i)=>{const p=sm((bandsT*3-i)/1);if(p<=0)return;c.save();c.translate(0,(1-p)*-40);c.globalAlpha=alpha*p;c.beginPath();c.moveTo(-b[2],b[1]);c.lineTo(b[2],b[1]);c.lineTo(b[4],b[3]);c.lineTo(-b[4],b[3]);c.closePath();c.fillStyle=b[0];c.fill();c.restore()});
+  if(leafT>0){c.strokeStyle=GR;c.lineWidth=7;c.lineCap='round';[[0,-6,0,-34],[-8,-8,-20,-32],[8,-8,20,-32]].forEach(l=>{c.beginPath();c.moveTo(l[0],l[1]);c.lineTo(l[0]+(l[2]-l[0])*leafT,l[1]+(l[3]-l[1])*leafT);c.stroke()})}
+  c.restore();
+}
+function ballG(c,x,y,r,col,num,a=1,rot=0,white=false){
+  c.save();c.globalAlpha=a;c.translate(x,y);c.shadowColor='rgba(0,0,0,.55)';c.shadowBlur=r*.5;c.shadowOffsetY=r*.22;
+  c.beginPath();c.arc(0,0,r,0,7);c.fillStyle=col;c.fill();c.shadowColor='transparent';
+  if(num){c.save();c.rotate(rot);c.beginPath();c.arc(0,0,r*.4,0,7);c.fillStyle='#f4f2ec';c.fill();c.fillStyle='#111';c.font=`700 ${r*.5}px -apple-system,Helvetica`;c.textAlign='center';c.textBaseline='middle';c.fillText(num,0,r*.03);c.restore()}
+  const g=c.createRadialGradient(-r*.35,-r*.4,r*.04,0,0,r);g.addColorStop(0,'rgba(255,255,255,.7)');g.addColorStop(.25,'rgba(255,255,255,0)');g.addColorStop(1,'rgba(0,0,0,.35)');
+  c.beginPath();c.arc(0,0,r,0,7);c.fillStyle=g;c.fill();c.restore();
+}
+function word(c,a,y,ya){ // BLUEROOT + STUDIO (+ "BILARD")
+  c.save();c.textAlign='center';c.globalAlpha=a;c.fillStyle='#fff';c.font='800 78px -apple-system,Helvetica,Arial';c.letterSpacing='12px';c.fillText('BLUEROOT',W/2+6,y);
+  c.fillStyle=B1;c.font='700 20px -apple-system,Helvetica';c.letterSpacing='14px';c.fillText('STUDIO',W/2+7,y+44);c.restore();
+  if(ya>0){c.save();c.globalAlpha=ya;c.textAlign='center';c.fillStyle='#8a93a3';c.font='600 18px -apple-system,Helvetica';c.letterSpacing='8px';c.fillText('PREZENTUJE  ·  BILARD',W/2+4,y+92);c.restore()}
+}
+function glow(c,x,y,r,col,a){const g=c.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,col);g.addColorStop(1,'rgba(0,0,0,0)');c.save();c.globalAlpha=a;c.fillStyle=g;c.fillRect(x-r,y-r,2*r,2*r);c.restore()}
+
+// ---- 1: marchewka w ósemce
+function d0(c,t){
+  bgc(c);
+  const R=112,cy=200;
+  const p=eo(t/1.5);const bx=-140+p*(W/2+140);const rot=(1-p)*-9;
+  const a=1;
+  // czarna bila
+  c.save();c.translate(bx,cy);c.shadowColor='rgba(0,0,0,.6)';c.shadowBlur=30;c.shadowOffsetY=12;c.beginPath();c.arc(0,0,R,0,7);c.fillStyle='#0b0b0d';c.fill();c.shadowColor='transparent';
+  // białe pole znika z obrotem (ósemka) – po zatrzymaniu pole się powiększa
+  const wf=sm((t-1.4)/0.5);c.save();c.rotate(rot);c.beginPath();c.arc(0,0,R*(.52+.06*wf),0,7);c.fillStyle='#f6f4ee';c.fill();
+  if(wf<1){c.fillStyle='#0b0b0d';c.font=`800 ${R*.8}px -apple-system,Helvetica`;c.textAlign='center';c.textBaseline='middle';c.globalAlpha=1-wf;c.fillText('8',0,R*.04)}c.restore();
+  const g=c.createRadialGradient(-R*.4,-R*.45,6,0,0,R);g.addColorStop(0,'rgba(255,255,255,.55)');g.addColorStop(.22,'rgba(255,255,255,0)');g.addColorStop(1,'rgba(0,0,0,.4)');c.beginPath();c.arc(0,0,R,0,7);c.fillStyle=g;c.fill();c.restore();
+  // marchewka w białym polu
+  const bt=cl((t-1.6)/1.1), lt=sm((t-2.5)/.6);
+  if(bt>0)carrot(c,bx,cy-R*.5,.8,bt,lt,1);
+  const wa=sm((t-3.2)/.7);word(c,wa,420,sm((t-4.1)/.7));
+}
+// ---- 2: marchewka jako kij
+function d1(c,t){
+  bgc(c);
+  const cue={x:W/2,y:250};
+  // biała bila
+  const hit=1.35;const bx0=W/2+190;
+  let bx=bx0,ba=1;if(t>hit){const q=1-Math.pow(1-cl((t-hit)/1.1),2);bx=bx0+q*620;ba=1-cl((t-hit-.6)/.5)}
+  if(ba>0)ballG(c,bx,250,34,'#f2f0e9',0,ba,0);
+  // marchewka: pozioma (czubek w prawo), potem obrót do pionu
+  const slide=eo(t/hit);const rotT=sm((t-1.7)/1.0);
+  const hx=-260+slide*(bx0-34-80+260);   // pozycja środka
+  const px=hx+(W/2-hx)*rotT, py=250+(205-250)*rotT; // środek marchewki
+  const ang=(Math.PI/2)*(1-rotT)*1 - Math.PI/2*(1-rotT)*0; // 0 = czubek w dół (pionowo)
+  // tip-down vertical = tip points +y. Horizontal: tip points +x -> rotate -90° from vertical
+  c.save();c.translate(px,py);c.rotate(-(Math.PI/2)*(1-rotT));
+  const k=1.2+(.95-1.2)*rotT; // skala maleje przy ustawianiu
+  carrot(c,0,-127*k/2,k,1,1,1);c.restore();
+  if(t>hit&&t<hit+.6){const q=(t-hit)/.6;glow(c,bx0-30,250,120*q+30,'rgba(200,225,255,.9)',1-q)}
+  const wa=sm((t-3.0)/.7);word(c,wa,420,sm((t-4.0)/.7));
+}
+// ---- 3: marchewka z bil
+function d2(c,t){
+  bgc(c);
+  const r=34,cx=W/2,top=130;
+  const rows=[[[-2*r,0],[0,0],[2*r,0]],[[-r,r*1.74],[r,r*1.74]],[[0,r*3.48]]];
+  const cols=[B1,B2,B3],nums=[[1,2,3],[4,5],[6]];
+  // układ w trójkąt: rzędy od dołu (jak ustawianie bil)
+  const order=[2,1,0];
+  order.forEach((ri,oi)=>{
+    rows[ri].forEach((pt,j)=>{
+      const s=.1+oi*.45+j*.1;const p=cl((t-s)/.6);
+      if(p<=0)return;
+      const drop=(1-eo(p))*-260;const bounce=Math.sin(cl((t-s-.5)/.4)*Math.PI)*-9*(1-cl((t-s-.5)/.4));
+      ballG(c,cx+pt[0],top+pt[1]+r+drop+bounce,r,cols[ri],nums[ri][j],cl(p*2.5),(1-p)*3);
+    });
+  });
+  // zielone liście rosną po ułożeniu
+  const lt=sm((t-1.9)/.6);
+  if(lt>0){c.save();c.translate(cx,top-4);c.strokeStyle=GR;c.lineWidth=11;c.lineCap='round';[[0,0,0,-48],[-14,-4,-36,-44],[14,-4,36,-44]].forEach(l=>{c.beginPath();c.moveTo(l[0],l[1]);c.lineTo(l[0]+(l[2]-l[0])*lt,l[1]+(l[3]-l[1])*lt);c.stroke()});c.restore()}
+  // trójkąt ramki (rack) unosi się i znika
+  const ra=sm((t-1.5)/.5);const ry=0;
+  if(ra>0){c.save();c.globalAlpha=ra*.9;c.translate(0,ry);c.strokeStyle='#c9a45a';c.lineWidth=6;c.lineJoin='round';c.beginPath();c.moveTo(cx-3*r-6,top-6);c.lineTo(cx+3*r+6,top-6);c.lineTo(cx,top+r*3.48+2*r+12);c.closePath();c.stroke();c.restore()}
+  if(t>1.9&&t<2.6){const q=(t-1.9)/.7;glow(c,cx,top+r*2,230*q+40,'rgba(130,190,255,.6)',(1-q)*.7)}
+  const wa=sm((t-2.9)/.7);word(c,wa,440,sm((t-3.9)/.7));
+}
+const fn=[d0,d1,d2],cx=[0,1,2].map(i=>document.getElementById('c'+i).getContext('2d')),T=[0,0,0];
+const now=()=>performance.now()/1000;function rp(i){T[i]=now()}[0,1,2].forEach(rp);
+function loop(){for(let i=0;i<3;i++){const t=(now()-T[i])%DUR;const c=cx[i];c.save();c.clearRect(0,0,W,H);fn[i](c,t);const f=cl((t-(DUR-.5))/.5);if(f>0){c.fillStyle=`rgba(15,17,21,${f})`;c.fillRect(0,0,W,H)}c.restore()}requestAnimationFrame(loop)}
+loop();
+</script></body></html>

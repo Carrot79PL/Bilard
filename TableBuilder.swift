@@ -12,6 +12,7 @@ struct TableNodes {
     var glare: [SCNNode] = []
     var contact: [SCNNode] = []
     var decals: [SCNNode] = []
+    var props = SCNNode()        // rekwizyty na ramie (popielniczka itd.)
     var emblem: SCNNode? = nil       // biały emblemat na środku sukna
     var probe: SCNLight? = nil
     var probeNode: SCNNode? = nil
@@ -711,6 +712,11 @@ enum TableBuilder {
         fl.color = nsc(0xE8ECF4)
         fill.light = fl
         root.addChildNode(fill)
+        // rekwizyty na ramie (popielniczka z dymiącym papierosem) – losowe miejsce na dłuższej ramie
+        let propsOn = (ProcessInfo.processInfo.environment["BILARD_PROPS"] ?? "1") != "0" && Settings.shared.props
+        t.props = Props.place(on: root, seed: UInt64(Date().timeIntervalSince1970 * 1000) &+ 7)
+        t.props.isHidden = !propsOn
+        root.addChildNode(t.props)
         return t
     }
 
@@ -849,6 +855,29 @@ enum TableBuilder {
             n.geometry = ng
         }
         holder.addChildNode(cl)
+        // mały, podświetlony podpis jak znaczek marki na rogu obu długich boków (współrzędne modelu)
+        if let u = Bundle.main.url(forResource: "podpis_logo", withExtension: "png"), let img = NSImage(contentsOf: u) {
+            let w = 0.19, h = w * 292 / 800
+            let halo = makeImage(256, 128) { c in
+                c.drawRadialGradient(gradient([rgb(0x9CC8FF, 0.5), rgb(0x9CC8FF, 0)], [0, 1]), startCenter: CGPoint(x: 128, y: 64), startRadius: 0,
+                                     endCenter: CGPoint(x: 128, y: 64), endRadius: 128, options: [])
+            }
+            for sgn in [1.0, -1.0] {
+                let n = SCNNode(); n.name = "tableLogo"
+                n.position = SCNVector3(0.93, 0.69, CGFloat(sgn * 0.6805))
+                if sgn < 0 { n.eulerAngles.y = .pi }
+                let hp = SCNPlane(width: CGFloat(w * 1.9), height: CGFloat(h * 2.6))
+                let hm = SCNMaterial(); hm.lightingModel = .constant; hm.diffuse.contents = halo; hm.blendMode = .add; hm.writesToDepthBuffer = false; hm.transparency = 0.55
+                hp.materials = [hm]
+                let hn = SCNNode(geometry: hp); hn.position.z = -0.0003; hn.renderingOrder = 3; n.addChildNode(hn)
+                let pl = SCNPlane(width: CGFloat(w), height: CGFloat(h))
+                let m = SCNMaterial(); m.lightingModel = .constant; m.diffuse.contents = img; m.diffuse.mipFilter = .linear
+                m.blendMode = .alpha; m.writesToDepthBuffer = false
+                pl.materials = [m]
+                let ln = SCNNode(geometry: pl); ln.renderingOrder = 4; n.addChildNode(ln)
+                holder.addChildNode(n)
+            }
+        }
         return holder
     }
 

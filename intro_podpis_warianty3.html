@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bilard – podpis jedną linią</title>
+<style>
+  :root{--bg:#0c0d10;--card:#14161b;--tx:#eef1f6;--dim:#8a93a3;--line:#262a33}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--tx);font-family:-apple-system,system-ui,sans-serif;padding:24px 16px}
+  h1{font-size:18px;font-weight:600;margin:0 0 4px}
+  p.sub{margin:0 0 20px;color:var(--dim);font-size:13px}
+  .grid,.wrap{max-width:760px;margin:0 auto}.wrap{margin-bottom:14px}.grid{display:grid;gap:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .card header{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px}
+  .card h2{font-size:14px;margin:0;font-weight:600}
+  .card small{color:var(--dim);font-size:12px;display:block;margin-top:2px}
+  button{background:#222733;color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;white-space:nowrap}
+  canvas{display:block;width:100%;height:auto;background:#111418}
+</style></head><body>
+<div class="wrap"><h1>Podpis jedną linią pióra, czytelny – trzy warianty</h1>
+<p class="sub">Podpis rysowany cienką, jasną linią pióra (jak wariant 3), ale z czytelnymi literami „Tomasz Marchewka”. Linię wyznaczam ze szkieletu pisma ręcznego, więc litery są normalnie czytelne, a efekt to pisanie jedną kreską z zamachem pod spodem.</p></div>
+<div class="grid">
+ <div class="card"><header><div><h2>A · Bradley Hand</h2><small>Zwykłe pismo długopisem, czytelne, lekko pochylone.</small></div><button onclick="rp(0)">Od nowa</button></header><canvas id="c0" width="960" height="540"></canvas></div>
+ <div class="card"><header><div><h2>B · Noteworthy</h2><small>Bardziej zaokrąglone, równiejsze litery, mocniejszy pochył.</small></div><button onclick="rp(1)">Od nowa</button></header><canvas id="c1" width="960" height="540"></canvas></div>
+ <div class="card"><header><div><h2>C · Savoye (podpisowy)</h2><small>Płynny, połączony podpis; trochę bardziej ozdobny, nadal czytelny.</small></div><button onclick="rp(2)">Od nowa</button></header><canvas id="c2" width="960" height="540"></canvas></div>
+</div>
+<script>
+const W=960,H=540,DUR=7.4;
+const cl=(v,a=0,b=1)=>Math.max(a,Math.min(b,v)), sm=t=>{t=cl(t);return t*t*(3-2*t)}, eo=t=>1-Math.pow(1-cl(t),3);
+const B1='#5aa6ff',B2='#2f7bf5',B3='#1f58d6',GR='#34c26b';
+function bgc(c){c.fillStyle='#111418';c.fillRect(0,0,W,H);const g=c.createRadialGradient(W/2,H*.42,10,W/2,H*.42,330);g.addColorStop(0,'rgba(46,134,255,.14)');g.addColorStop(.5,'rgba(46,134,255,.05)');g.addColorStop(1,'rgba(46,134,255,0)');c.fillStyle=g;c.fillRect(0,0,W,H)}
+function carrot(c,x,y,k){c.save();c.translate(x,y);c.scale(k,k);
+  [[B1,0,36,38,24],[B2,44,24,77,13],[B3,82,13,127,0]].forEach(b=>{c.beginPath();c.moveTo(-b[2],b[1]);c.lineTo(b[2],b[1]);c.lineTo(b[4],b[3]);c.lineTo(-b[4],b[3]);c.closePath();c.fillStyle=b[0];c.fill()});
+  c.strokeStyle=GR;c.lineWidth=7;c.lineCap='round';[[0,-6,0,-34],[-8,-8,-20,-32],[8,-8,20,-32]].forEach(l=>{c.beginPath();c.moveTo(l[0],l[1]);c.lineTo(l[2],l[3]);c.stroke()});c.restore()}
+function ball(c){const x=W/2,y=150,R=70;c.save();c.translate(x,y);c.shadowColor='rgba(0,0,0,.6)';c.shadowBlur=24;c.shadowOffsetY=10;c.beginPath();c.arc(0,0,R,0,7);c.fillStyle='#0b0b0d';c.fill();c.shadowColor='transparent';
+  c.beginPath();c.arc(0,0,R*.58,0,7);c.fillStyle='#e8e5dc';c.fill();carrot(c,0,-R*.4,.52);
+  const g=c.createRadialGradient(-R*.4,-R*.45,4,0,0,R);g.addColorStop(0,'rgba(255,255,255,.5)');g.addColorStop(.22,'rgba(255,255,255,0)');g.addColorStop(1,'rgba(0,0,0,.4)');c.beginPath();c.arc(0,0,R,0,7);c.fillStyle=g;c.fill();c.restore()}
+// szkielet (1 px) pisma ręcznego: rasteryzacja tekstu -> ścienianie Zhang–Suen -> punkty posortowane od lewej do prawej
+function thin(img,w,h){let ch=true;while(ch){ch=false;for(let st=0;st<2;st++){const del=[];
+  for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=y*w+x;if(!img[i])continue;
+    const p2=img[i-w],p3=img[i-w+1],p4=img[i+1],p5=img[i+w+1],p6=img[i+w],p7=img[i+w-1],p8=img[i-1],p9=img[i-w-1];
+    const B=p2+p3+p4+p5+p6+p7+p8+p9;if(B<2||B>6)continue;
+    let A=0;const q=[p2,p3,p4,p5,p6,p7,p8,p9,p2];for(let k=0;k<8;k++)if(!q[k]&&q[k+1])A++;if(A!==1)continue;
+    if(st===0){if(p2*p4*p6)continue;if(p4*p6*p8)continue}else{if(p2*p4*p8)continue;if(p2*p6*p8)continue}
+    del.push(i)}
+  for(const i of del)img[i]=0;if(del.length)ch=true}}}
+function skeleton(spec){
+  const w=1100,h=300,cv=document.createElement('canvas');cv.width=w;cv.height=h;const x=cv.getContext('2d');
+  x.fillStyle='#fff';x.fillRect(0,0,w,h);x.fillStyle='#000';x.textBaseline='alphabetic';
+  x.font=`${spec.weight} 100px ${spec.font}`;const m=x.measureText(spec.text).width;const size=100*spec.width/m;
+  x.font=`${spec.weight} ${size}px ${spec.font}`;x.save();x.translate(w/2,200);x.transform(1,0,-(spec.skew||0),1,0,0);x.textAlign='center';x.fillText(spec.text,0,0);x.restore();
+  const d=x.getImageData(0,0,w,h).data;const img=new Uint8Array(w*h);for(let i=0;i<w*h;i++)img[i]=d[i*4]<128?1:0;
+  thin(img,w,h);const pts=[];for(let yy=0;yy<h;yy++)for(let xx=0;xx<w;xx++)if(img[yy*w+xx])pts.push([xx-w/2,yy-200]);
+  pts.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);return pts}
+const SK=[
+ skeleton({weight:700,font:"'Bradley Hand','Noteworthy',cursive",text:'Tomasz Marchewka',width:820,skew:.16}),
+ skeleton({weight:700,font:"'Noteworthy','Marker Felt',cursive",text:'Tomasz Marchewka',width:800,skew:.26}),
+ skeleton({weight:400,font:"'Savoye LET','Snell Roundhand',cursive",text:'Tomasz Marchewka',width:820,skew:0})];
+function write(c,v,t,baseY){
+  const pts=SK[v];if(!pts.length)return;const t0=1.0,dur=3.3;const k=cl((t-t0)/dur);
+  const p=k<1?(k*.7+ (k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2)*.3):1;
+  const xa=pts[0][0],xb=pts[pts.length-1][0],xc=xa+(xb-xa)*p;
+  c.save();c.translate(W/2,baseY);c.shadowColor='rgba(120,170,255,.55)';c.shadowBlur=7;c.fillStyle='#f2f5fb';
+  let last=null;for(let i=0;i<pts.length;i++){const q=pts[i];if(q[0]>xc)break;c.beginPath();c.arc(q[0],q[1],1.95,0,7);c.fill();last=q}
+  if(k>0&&k<1&&last){c.shadowBlur=0;const g=c.createRadialGradient(last[0],last[1],0,last[0],last[1],28);g.addColorStop(0,'rgba(190,220,255,.95)');g.addColorStop(1,'rgba(120,170,255,0)');c.fillStyle=g;c.fillRect(last[0]-32,last[1]-32,64,64)}
+  c.restore();return{xa,xb}}
+function swoosh(c,t,baseY,xa,xb,amp){const p=cl((t-4.4)/.7);if(p<=0)return;c.save();c.translate(W/2,baseY+34);c.strokeStyle='#f2f5fb';c.lineWidth=2.4;c.lineCap='round';c.shadowColor='rgba(120,170,255,.55)';c.shadowBlur=7;
+  c.beginPath();const n=70;for(let i=0;i<=n*p;i++){const u=i/n;const x=xa+(xb-xa)*u*.96;const y=Math.sin(u*Math.PI*1.0)*-amp*(1-u*.3)+(1-u)*10;if(i==0)c.moveTo(x,y);else c.lineTo(x,y)}c.stroke();
+  if(p>=1){c.fillStyle='#f2f5fb';c.beginPath();c.arc(xb*.96+8,-2,3.4,0,7);c.fill()}c.restore()}
+function studio(c,t,y){const a=sm((t-4.9)/.8);if(a<=0)return;c.save();c.globalAlpha=a;c.textAlign='center';c.fillStyle=B1;c.font='700 22px -apple-system,Helvetica';c.letterSpacing='16px';c.fillText('STUDIO',W/2+8,y);c.restore()}
+function dv(c,t,v,baseY,amp){bgc(c);ball(c);const r=write(c,v,t,baseY);if(r)swoosh(c,t,baseY,r.xa,r.xb,amp);studio(c,t,baseY+96)}
+function d0(c,t){dv(c,t,0,352,10)}
+function d1(c,t){dv(c,t,1,352,12)}
+function d2(c,t){dv(c,t,2,352,10)}
+const fn=[d0,d1,d2],cx=[0,1,2].map(i=>document.getElementById('c'+i).getContext('2d')),T=[0,0,0];
+const now=()=>performance.now()/1000;function rp(i){T[i]=now()}[0,1,2].forEach(rp);
+function loop(){for(let i=0;i<3;i++){const t=(now()-T[i])%DUR;const c=cx[i];c.save();c.clearRect(0,0,W,H);fn[i](c,t);const f=cl((t-(DUR-.5))/.5);if(f>0){c.fillStyle=`rgba(17,20,24,${f})`;c.fillRect(0,0,W,H)}c.restore()}requestAnimationFrame(loop)}
+loop();
+</script></body></html>
