@@ -1,5 +1,15 @@
 # Bilard 8-Ball (macOS, Apple Silicon) — Swift + SceneKit/Metal
 
+Natywny bilard 3D z własną fizyką: ósemka, dziewiątka, dziesiątka, 14/1 i snooker, trzy poziomy komputera, turnieje, powtórki i personalizacja.
+Native 3D pool with its own ball physics. **[⬇️ Download / Pobierz](https://github.com/Carrot79PL/Bilard/releases/latest)**
+
+<p align="center"><img src="docs/gameplay.jpg" width="820" alt="Bilard"></p>
+<p align="center">
+  <img src="docs/top.jpg" width="32%" alt="Top view">
+  <img src="docs/zoom-rack.jpg" width="32%" alt="Close-up of the rack">
+  <img src="docs/table-badge.jpg" width="32%" alt="Table side detail">
+</p>
+
 ## Szybkie uruchomienie (bez Xcode)
 ```bash
 cd "Bilard" && ./build.sh && open Bilard.app
