@@ -7,8 +7,8 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 swiftc -O -swift-version 5 -target arm64-apple-macos14.0 -o "$APP/Contents/MacOS/Bilard" \
   BilliardPhysics.swift Textures.swift TextureFactory.swift TableBuilder.swift AudioEngine.swift GameStateManager.swift HUDView.swift \
-  AimIndicator.swift CameraDirector.swift TVCamera.swift ReplayRecorder.swift ShotEvaluator.swift GameSceneController.swift ChalkRack.swift SaveGame.swift Intro.swift Settings.swift Personalize.swift MenuViews.swift Tournament.swift TournamentViews.swift MusicEngine.swift Emblems.swift ClothMenu.swift Confetti.swift Challenges.swift HDRSupport.swift HDRIBackground.swift SelfTest.swift Intro3D.swift Props.swift main.swift \
-  -framework Cocoa -framework SceneKit -framework SpriteKit -framework AVFoundation -framework SwiftUI -framework Metal -framework QuartzCore -framework ModelIO
+  AimIndicator.swift CameraDirector.swift TVCamera.swift ReplayRecorder.swift ShotEvaluator.swift GameSceneController.swift ChalkRack.swift SaveGame.swift Intro.swift Settings.swift Personalize.swift MenuViews.swift Tournament.swift TournamentViews.swift MusicEngine.swift Emblems.swift ClothMenu.swift Confetti.swift Challenges.swift HDRSupport.swift HDRIBackground.swift SelfTest.swift Intro3D.swift Props.swift LogoData.swift Bake.swift PenSound.swift FilmSound.swift TMIntroView.swift TMIntroKit.swift main.swift \
+  -framework Cocoa -framework SceneKit -framework SpriteKit -framework AVFoundation -framework SwiftUI -framework Metal -framework QuartzCore -framework ModelIO -framework MetalKit -framework MetalPerformanceShaders
 cp Resources/Shaders.metal Resources/blueroot.svg Resources/author.jpg Resources/podpis_art.json Resources/podpis_sig.png Resources/podpis_logo.png Resources/podpis_time.png Resources/podpis_pen.json Resources/podpis_studio.png "$APP/Contents/Resources/"
 [ -d Assets ] && cp -R Assets "$APP/Contents/Resources/"
 if [ ! -f Resources/AppIcon.icns ] || [ Icon.swift -nt Resources/AppIcon.icns ]; then

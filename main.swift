@@ -40,16 +40,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         container.autoresizingMask = [.width, .height]
         window.contentView = container
 
+        let newIntro = !testMode && env["BILARD_OLDINTRO"] == nil && env["BILARD_BLUEROOT3D"] == nil
+        if newIntro { window.backgroundColor = .black; container.wantsLayer = true; container.layer?.backgroundColor = NSColor.black.cgColor }
+
+        buildMenu()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+
+        if newIntro {
+            // Intro studia startuje natychmiast na czarnym oknie; gra (scena, tekstury, audio, renderer) dopiero w completion.
+            window.toggleFullScreen(nil)
+            TMIntro.play(in: container) { [weak self] in
+                guard let self = self else { return }
+                self.bootGame(frame: frame, testMode: false)
+                self.window.makeFirstResponder(self.controller.scnView)
+            }
+            return
+        }
+
+        bootGame(frame: frame, testMode: testMode)
+        window.makeFirstResponder(controller.scnView)
+
+        if testMode {
+            window.setContentSize(NSSize(width: Double(env["BILARD_W"] ?? "") ?? 1280, height: Double(env["BILARD_H"] ?? "") ?? 800))
+            if env["BILARD_FS"] != nil { window.toggleFullScreen(nil) }
+            return
+        }
+        window.toggleFullScreen(nil)
+        showIntro()
+    }
+
+    /// Cala inicjalizacja gry: kontroler, scena, HUD, tekstury, renderer/timery, demo.
+    func bootGame(frame: NSRect, testMode: Bool) {
         controller = GameSceneController(frame: frame)
         let scn = controller.scnView
         scn.frame = container.bounds
         scn.autoresizingMask = [.width, .height]
-        container.addSubview(scn)
+        container.addSubview(scn, positioned: .below, relativeTo: nil)
 
         let hud = HUDHostingView(model: controller.model)
         hud.frame = container.bounds
         hud.autoresizingMask = [.width, .height]
-        if env["BILARD_NOHUD"] == nil { container.addSubview(hud) }
+        if env["BILARD_NOHUD"] == nil { container.addSubview(hud, positioned: .above, relativeTo: scn) }
         applyScale()
 
         // synteza tekstur 4K w tle (równolegle), potem budowa sceny
@@ -68,21 +100,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 model.loading = 1
             }
         }
-
-        buildMenu()
-        window.makeKeyAndOrderFront(nil)
-        window.makeFirstResponder(scn)
-        NSApp.activate(ignoringOtherApps: true)
         controller.demoPending = !testMode || env["BILARD_DEMO"] != nil
         controller.start()
-
-        if testMode {
-            window.setContentSize(NSSize(width: Double(env["BILARD_W"] ?? "") ?? 1280, height: Double(env["BILARD_H"] ?? "") ?? 800))
-            if env["BILARD_FS"] != nil { window.toggleFullScreen(nil) }
-            return
-        }
-        window.toggleFullScreen(nil)
-        showIntro()
     }
 
     func applyScale() {
@@ -91,6 +110,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func showIntro() {
+        if env["BILARD_OLDINTRO"] == nil && env["BILARD_BLUEROOT3D"] == nil {
+            TMIntro.play(in: container) { [weak self] in
+                guard let self = self else { return }
+                self.window.makeFirstResponder(self.controller.scnView)
+            }
+            return
+        }
         if env["BILARD_OLDINTRO"] == nil {
             let v = Intro3DView(frame: container.bounds)
             v.autoresizingMask = [.width, .height]
